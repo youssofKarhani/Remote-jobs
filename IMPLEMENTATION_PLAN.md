@@ -1,29 +1,40 @@
-# Phase 1: MVP Implementation Plan
+# Phase 1 & 2: Implementation & Execution Plan
 
-This document outlines the step-by-step execution plan to build the foundations of the public AI Job Application Platform, as defined in `ARCHITECTURE.md`.
+This document is the strict execution checklist for **Phase 1 (Candidate Foundation)** and **Phase 2 (Job Discovery)** as defined in `ARCHITECTURE.md`. Agents should follow this step-by-step.
 
-## Step 1: Monorepo Scaffolding & Tooling
-- **Backend**: Create a `backend/` folder. Initialize a modern Python environment using `uv`. Install FastAPI, Uvicorn, SQLAlchemy, and Alembic.
-- **Frontend**: Create a `frontend/` folder. Initialize a Next.js (App Router) project with Tailwind CSS and TypeScript.
+## Step 1: Monorepo Scaffolding & Setup
+- **Backend**: Create `backend/`. Initialize `uv`. Install FastAPI, Uvicorn, SQLAlchemy, Alembic, and `instructor`.
+- **Frontend**: Create `frontend/`. Initialize Next.js (App Router), Tailwind CSS, and TypeScript.
+- **UI Design System**: Initialize `shadcn/ui` in the frontend and install core primitives (Button, Card, Form, Input).
 
-## Step 2: Database Schema & Domain Models
-- **Database**: Ensure a local PostgreSQL instance is running.
-- **Models**: Create the SQLAlchemy ORM models based on the architecture (e.g., `User`, `CandidateProfile`, `EvidenceItem`, `Job`, `JobMatch`).
-- **Schemas**: Create the corresponding Pydantic schemas (v2) for API responses and LLM structured outputs.
-- **Migrations**: Generate and run the first Alembic migration to create the tables.
+## Step 2: Database Schema (PostgreSQL)
+Implement the core entity models in SQLAlchemy/SQLModel based strictly on Section 26 of `ARCHITECTURE.md`.
+- **Identity & Preferences**: `User`, `CandidateProfile`, `CandidatePreference`
+- **Evidence Bank**: `ExperienceRecord`, `EvidenceItem`, `Skill`, `Certification`, `Project`, `EducationRecord`
+- **Jobs**: `Job`, `Company`, `JobSource`, `JobSourceRecord`
+- **Migrations**: Generate and run the initial Alembic migration.
 
-## Step 3: Core Backend Services
-- **Authentication**: Set up basic JWT auth middleware (or stub out Clerk/Supabase Auth integration) to secure routes.
-- **Profile Service**: Build FastAPI endpoints to upload a CV, extract data (mocking the LLM temporarily), and save it to the `EvidenceBank`.
-- **Job Source Abstraction**: Port the Arbeitnow fetching logic from the CLI into the new `JobSource` Protocol, including deduplication logic before saving to PostgreSQL.
+## Step 3: Backend Core Services (Phase 1)
+- **Authentication**: Set up user auth routing (stubbed JWT or placeholder integration) to secure all endpoints.
+- **AI Gateway**: Implement the `AIService` Protocol interface to abstract the LLM SDKs (Section 21).
+- **CV Upload & Extraction Flow**:
+  1. Endpoint to receive PDF/DOCX.
+  2. Document text extraction.
+  3. Route to AI Gateway for structured extraction into `CandidateProfile` + `EvidenceBank` models.
+- **Profile Management**: Endpoints for the user to manually review, edit, and verify extracted evidence.
 
-## Step 4: Frontend Development
-- **Design System**: Initialize `shadcn/ui` and configure Tailwind.
-- **Pages**:
-  - `/dashboard`: High-level overview of matched jobs.
-  - `/profile`: Interface for users to view and edit their extracted `CandidateProfile` and `EvidenceBank`.
-  - `/jobs`: A feed of jobs fetched from the API.
+## Step 4: Backend Core Services (Phase 2)
+- **Job Source Abstraction**: Implement `JobSource` Protocol. Create the `ArbeitnowSource` implementation.
+- **Normalization & Deduplication**: Service to normalize incoming jobs into the canonical `Job` model, ensuring no duplicates via URL/title/company hashing.
+- **Deterministic Filtering**: Service to compare fetched jobs against a user's `CandidatePreference` (e.g., location, job type) before any AI processing occurs.
 
-## Step 5: Integration & Verification
-- Wire the Next.js frontend to the FastAPI backend (configure CORS).
-- Verify the end-to-end flow: User can view their profile and see fetched jobs from the database.
+## Step 5: Frontend Interface
+Build the Next.js UI using `shadcn/ui`, `react-hook-form`, and `zod`.
+- **`/cv-upload`**: A drag-and-drop interface to upload a resume and trigger the extraction pipeline.
+- **`/profile`**: Form interfaces to view, edit, and verify the structured `CandidateProfile` and `EvidenceBank`.
+- **`/preferences`**: UI to define deterministic constraints (Target roles, Locations, Salary, Remote/Hybrid).
+- **`/jobs`**: A feed displaying the canonical, deduplicated jobs fetched from the database, filtered by the user's deterministic preferences.
+
+## Definition of Done (Ready for Phase 3)
+✅ The user has a verified professional profile independent of the original CV file.
+✅ Jobs are normalized, deduplicated, stored once, and filterable per candidate via deterministic rules.
