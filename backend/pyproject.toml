@@ -1,0 +1,42 @@
+[project]
+name = "remotejobs-backend"
+version = "0.1.0"
+description = "Backend API and database service for remotejobs-public platform"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "sqlalchemy>=2.0.30",
+    "alembic>=1.13.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+    "instructor>=1.4.0",
+    "psycopg2-binary>=2.9.9",
+    "asyncpg>=0.29.0",
+    "pyjwt>=2.8.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.0.1",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pypdf>=6.16.1",
+    "python-docx>=1.2.0",
+    "email-validator>=2.3.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+pythonpath = ["."]
