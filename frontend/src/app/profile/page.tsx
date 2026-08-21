@@ -101,12 +101,12 @@ export default function ProfilePage() {
       try {
         const res = await profileApi.getProfile();
         if (res) {
-          setProfile({
-            full_name: res.full_name || profile.full_name,
-            headline: res.headline || profile.headline,
-            location: res.location || profile.location,
-            summary: res.summary || profile.summary,
-          });
+          setProfile((prev) => ({
+            full_name: res.full_name || prev.full_name,
+            headline: res.headline || prev.headline,
+            location: res.location || prev.location,
+            summary: res.summary || prev.summary,
+          }));
 
           if (res.evidence_bank) {
             if (res.evidence_bank.experiences?.length > 0) {

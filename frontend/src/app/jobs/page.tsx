@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Briefcase, MapPin, Building, ExternalLink, RefreshCw, Filter, Sparkles, CheckCircle2, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -53,7 +53,7 @@ export default function JobsPage() {
     },
   ]);
 
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await jobsApi.getJobs({
@@ -68,11 +68,12 @@ export default function JobsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [applyPreferences, searchTerm]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadJobs();
-  }, [applyPreferences]);
+  }, [loadJobs]);
 
   const handleSyncJobs = async () => {
     setIsSyncing(true);
