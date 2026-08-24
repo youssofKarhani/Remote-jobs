@@ -10,20 +10,20 @@ export function HeroCodeGraphic() {
     const jsonText = JSON.stringify(
       {
         candidate_profile: {
-          full_name: "Youssof El Karhani",
-          headline: "AI & Automation Lead",
+          full_name: "Alex Rivera",
+          headline: "Staff Distributed Systems Engineer",
         },
         evidence_bank: {
           experiences: [
             {
-              role: "AI Lead",
+              role: "Staff Backend Engineer",
               bullets: [
-                { id: "EXP_001", verified: true, text: "Architected Central Hub in Python & Flask" },
-                { id: "EXP_002", verified: true, text: "Automated real-time distributed pipelines" }
+                { id: "EXP_001", verified: true, text: "Architected event-driven streaming pipeline in Go & Kafka" },
+                { id: "EXP_002", verified: true, text: "Engineered zero-downtime distributed consensus layer" }
               ]
             }
           ],
-          skills: ["SKILL_001: Python", "SKILL_002: FastAPI", "SKILL_003: PostgreSQL"]
+          skills: ["SKILL_001: Go", "SKILL_002: Rust", "SKILL_003: PostgreSQL", "SKILL_004: Kubernetes"]
         }
       },
       null,
@@ -85,16 +85,16 @@ export function HeroCodeGraphic() {
             </div>
 
             <div className="text-zinc-300 space-y-2 leading-relaxed text-[11px]">
-              <p className="text-zinc-400"># Youssof El Karhani - AI Lead</p>
+              <p className="text-zinc-400"># Alex Rivera - Staff Distributed Systems Engineer</p>
               <p className="p-2 rounded bg-zinc-900/60 border border-zinc-800/80 text-zinc-200">
-                <span className="text-blue-400">&gt;</span> Built Ruya Central Hub, an event-driven automation platform using Python, Flask & Gunicorn for microservices.
+                <span className="text-blue-400">&gt;</span> Architected high-throughput event streaming pipeline processing 250k events/sec with Go & Kafka.
               </p>
               <p className="p-2 rounded bg-zinc-900/60 border border-zinc-800/80 text-zinc-200">
-                <span className="text-blue-400">&gt;</span> Integrated fintech APIs with OAuth2 and automated real-time distributed data pipelines.
+                <span className="text-blue-400">&gt;</span> Engineered zero-downtime distributed consensus layer and high-availability PostgreSQL clusters.
               </p>
               <div className="flex flex-wrap gap-1 pt-1 text-[10px] text-zinc-400">
-                <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">Python</span>
-                <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">FastAPI</span>
+                <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">Go</span>
+                <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">Kafka</span>
                 <span className="px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">PostgreSQL</span>
               </div>
             </div>
@@ -168,18 +168,18 @@ export function HeroCodeGraphic() {
               <pre>
                 <span className="text-zinc-400">&#123;</span>{"\n"}
                 {"  "}<span className="text-blue-400">&quot;candidate_profile&quot;</span>: &#123;{"\n"}
-                {"    "}<span className="text-purple-300">&quot;full_name&quot;</span>: <span className="text-emerald-300">&quot;Youssof El Karhani&quot;</span>,{"\n"}
-                {"    "}<span className="text-purple-300">&quot;headline&quot;</span>: <span className="text-emerald-300">&quot;AI & Automation Lead&quot;</span>{"\n"}
+                {"    "}<span className="text-purple-300">&quot;full_name&quot;</span>: <span className="text-emerald-300">&quot;Alex Rivera&quot;</span>,{"\n"}
+                {"    "}<span className="text-purple-300">&quot;headline&quot;</span>: <span className="text-emerald-300">&quot;Staff Distributed Systems Engineer&quot;</span>{"\n"}
                 {"  "}&#125;,{"\n"}
                 {"  "}<span className="text-blue-400">&quot;evidence_bank&quot;</span>: &#123;{"\n"}
                 {"    "}<span className="text-purple-300">&quot;experiences&quot;</span>: [&#123;{"\n"}
                 {"      "}<span className="text-zinc-400">&quot;bullets&quot;</span>: [&#123;{"\n"}
                 {"        "}<span className="text-amber-300">&quot;stable_id&quot;</span>: <span className="text-amber-400 font-bold">&quot;EXP_001&quot;</span>,{"\n"}
                 {"        "}<span className="text-zinc-400">&quot;verified&quot;</span>: <span className="text-emerald-400 font-bold">true</span>,{"\n"}
-                {"        "}<span className="text-zinc-400">&quot;raw_text&quot;</span>: <span className="text-emerald-300">&quot;Architected Central Hub...&quot;</span>{"\n"}
+                {"        "}<span className="text-zinc-400">&quot;raw_text&quot;</span>: <span className="text-emerald-300">&quot;Architected streaming pipeline...&quot;</span>{"\n"}
                 {"      "}&#125;]{"\n"}
                 {"    "}&#125;],{"\n"}
-                {"    "}<span className="text-purple-300">&quot;skills&quot;</span>: [&#123; <span className="text-amber-300">&quot;stable_id&quot;</span>: <span className="text-amber-400">&quot;SKILL_001&quot;</span>, <span className="text-zinc-400">&quot;name&quot;</span>: <span className="text-emerald-300">&quot;FastAPI&quot;</span> &#125;]{"\n"}
+                {"    "}<span className="text-purple-300">&quot;skills&quot;</span>: [&#123; <span className="text-amber-300">&quot;stable_id&quot;</span>: <span className="text-amber-400">&quot;SKILL_001&quot;</span>, <span className="text-zinc-400">&quot;name&quot;</span>: <span className="text-emerald-300">&quot;Go&quot;</span> &#125;]{"\n"}
                 {"  "}&#125;{"\n"}
                 <span className="text-zinc-400">&#125;</span>
               </pre>
@@ -198,3 +198,4 @@ export function HeroCodeGraphic() {
     </div>
   );
 }
+

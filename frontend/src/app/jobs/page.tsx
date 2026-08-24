@@ -17,41 +17,8 @@ export default function JobsPage() {
   const [applyPreferences, setApplyPreferences] = useState(false);
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
 
-  // Job postings collection
-  const [jobs, setJobs] = useState<any[]>([
-    {
-      id: "job-1",
-      slug: "senior-python-fastapi-engineer-berlin",
-      title: "Senior Python & FastAPI Engineer",
-      company_name: "FinTech Cloud Solutions",
-      location: "Berlin, Germany",
-      remote: true,
-      job_types: ["Full Time", "Remote"],
-      tags: ["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"],
-      salary_min: 85000,
-      salary_max: 105000,
-      salary_currency: "EUR",
-      published_at: "2 hours ago",
-      url: "https://arbeitnow.com/jobs/senior-python-fastapi-engineer-1",
-      description: "We are seeking a talented Senior Python Engineer to architect high-throughput financial microservices...",
-    },
-    {
-      id: "job-2",
-      slug: "ai-systems-engineer-remote",
-      title: "AI Systems & Automation Engineer",
-      company_name: "Nexus Intelligence",
-      location: "Munich, Germany",
-      remote: true,
-      job_types: ["Full Time", "Remote"],
-      tags: ["Python", "PyTorch", "FastAPI", "LLM", "Redis"],
-      salary_min: 90000,
-      salary_max: 120000,
-      salary_currency: "EUR",
-      published_at: "5 hours ago",
-      url: "https://arbeitnow.com/jobs/ai-systems-engineer-2",
-      description: "Join our core team building autonomous AI workflows and LLM orchestration layers...",
-    },
-  ]);
+  // Job postings collection (initialized empty without hardcoded dummy data)
+  const [jobs, setJobs] = useState<any[]>([]);
 
   const loadJobs = useCallback(async () => {
     setIsLoading(true);
@@ -60,11 +27,11 @@ export default function JobsPage() {
         search: searchTerm || undefined,
         apply_preferences: applyPreferences,
       });
-      if (res && res.items?.length > 0) {
+      if (res && res.items) {
         setJobs(res.items);
       }
     } catch (err) {
-      console.log("Using initial deduplicated jobs state.");
+      console.log("No jobs fetched from API yet.");
     } finally {
       setIsLoading(false);
     }
@@ -146,10 +113,24 @@ export default function JobsPage() {
             <span>Loading job postings...</span>
           </div>
         ) : filteredJobs.length === 0 ? (
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground text-sm">
-              No jobs matching your active search and filter constraints.
-            </p>
+          <Card className="p-8 text-center glass-card border-dashed border-zinc-800 bg-zinc-950/40 space-y-3">
+            <div className="h-10 w-10 rounded-xl bg-purple-950/60 border border-purple-800/40 flex items-center justify-center text-purple-400 mx-auto">
+              <Briefcase className="h-5 w-5" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-zinc-200">No Job Postings Available</h3>
+              <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+                {searchTerm
+                  ? `No jobs match "${searchTerm}". Try broadening your search or clear filters.`
+                  : "No postings found in database. Click 'Sync External Sources' to ingest normalized jobs from Arbeitnow."}
+              </p>
+            </div>
+            {!searchTerm && (
+              <Button size="sm" variant="outline" onClick={handleSyncJobs} disabled={isSyncing} className="text-xs gap-1.5 mt-2">
+                <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+                Sync External Postings
+              </Button>
+            )}
           </Card>
         ) : (
           filteredJobs.map((job) => (

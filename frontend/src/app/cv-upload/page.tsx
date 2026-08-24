@@ -57,12 +57,12 @@ export default function CVUploadPage() {
       setCurrentStep("Assigning immutable stable IDs and persisting to Evidence Bank...");
 
       const summary = res.summary || {
-        experiences_extracted: 2,
-        bullets_extracted: 8,
-        skills_extracted: 15,
-        projects_extracted: 3,
-        certifications_extracted: 1,
-        education_extracted: 1,
+        experiences_extracted: 0,
+        bullets_extracted: 0,
+        skills_extracted: 0,
+        projects_extracted: 0,
+        certifications_extracted: 0,
+        education_extracted: 0,
       };
 
       setProgress(100);

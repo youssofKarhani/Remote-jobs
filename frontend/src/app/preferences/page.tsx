@@ -11,16 +11,16 @@ import { Badge } from "@/components/ui/badge";
 import { preferencesApi } from "@/lib/api";
 
 export default function PreferencesPage() {
-  const [targetRoles, setTargetRoles] = useState<string[]>(["AI Engineer", "Backend Developer"]);
+  const [targetRoles, setTargetRoles] = useState<string[]>([]);
   const [newRole, setNewRole] = useState("");
-  const [locations, setLocations] = useState<string[]>(["Germany", "Munich", "Berlin"]);
+  const [locations, setLocations] = useState<string[]>([]);
   const [newLocation, setNewLocation] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [hybridAllowed, setHybridAllowed] = useState(true);
   const [onsiteAllowed, setOnsiteAllowed] = useState(true);
-  const [minSalary, setMinSalary] = useState("80000");
-  const [salaryCurrency, setSalaryCurrency] = useState("EUR");
-  const [jobTypes, setJobTypes] = useState<string[]>(["Full Time"]);
+  const [minSalary, setMinSalary] = useState("");
+  const [salaryCurrency, setSalaryCurrency] = useState("USD");
+  const [jobTypes, setJobTypes] = useState<string[]>([]);
   const [excludedCompanies, setExcludedCompanies] = useState<string[]>([]);
   const [excludedKeywords, setExcludedKeywords] = useState<string[]>([]);
   const [newExcludedCompany, setNewExcludedCompany] = useState("");
@@ -48,7 +48,7 @@ export default function PreferencesPage() {
           if (pref.excluded_keywords) setExcludedKeywords(pref.excluded_keywords);
         }
       } catch (err) {
-        console.log("Using initial default candidate preferences state.");
+        console.log("No stored candidate preferences found yet.");
       } finally {
         setIsLoading(false);
       }
@@ -138,22 +138,26 @@ export default function PreferencesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {targetRoles.map((role) => (
-                <Badge key={role} variant="secondary" className="gap-1 py-1 px-2.5 text-xs">
-                  {role}
-                  <button
-                    onClick={() => handleRemoveRole(role)}
-                    className="ml-1 hover:text-destructive font-bold"
-                  >
-                    &times;
-                  </button>
-                </Badge>
-              ))}
-            </div>
+            {targetRoles.length === 0 ? (
+              <p className="text-xs text-zinc-500 italic">No target roles configured yet. Add your preferred job titles below.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {targetRoles.map((role) => (
+                  <Badge key={role} variant="secondary" className="gap-1 py-1 px-2.5 text-xs">
+                    {role}
+                    <button
+                      onClick={() => handleRemoveRole(role)}
+                      className="ml-1 hover:text-destructive font-bold"
+                    >
+                      &times;
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
             <form onSubmit={handleAddRole} className="flex gap-2 max-w-md">
               <Input
-                placeholder="e.g. Platform Engineer, ML Engineer"
+                placeholder="e.g. Distributed Systems Engineer, Backend Architect"
                 value={newRole}
                 onChange={(e) => setNewRole(e.target.value)}
               />
@@ -172,22 +176,26 @@ export default function PreferencesPage() {
           <CardContent className="space-y-6">
             <div className="space-y-3">
               <span className="text-sm font-medium">Target Locations</span>
-              <div className="flex flex-wrap gap-2">
-                {locations.map((loc) => (
-                  <Badge key={loc} variant="secondary" className="gap-1 py-1 px-2.5 text-xs">
-                    {loc}
-                    <button
-                      onClick={() => handleRemoveLocation(loc)}
-                      className="ml-1 hover:text-destructive font-bold"
-                    >
-                      &times;
-                    </button>
-                  </Badge>
-                ))}
-              </div>
+              {locations.length === 0 ? (
+                <p className="text-xs text-zinc-500 italic">No geographic boundaries configured. Add countries/regions or enable Remote Only.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {locations.map((loc) => (
+                    <Badge key={loc} variant="secondary" className="gap-1 py-1 px-2.5 text-xs">
+                      {loc}
+                      <button
+                        onClick={() => handleRemoveLocation(loc)}
+                        className="ml-1 hover:text-destructive font-bold"
+                      >
+                        &times;
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
               <form onSubmit={handleAddLocation} className="flex gap-2 max-w-md">
                 <Input
-                  placeholder="e.g. Germany, Berlin, Remote EU"
+                  placeholder="e.g. United States, Germany, Remote EU"
                   value={newLocation}
                   onChange={(e) => setNewLocation(e.target.value)}
                 />

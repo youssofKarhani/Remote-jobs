@@ -131,7 +131,7 @@ export function HowItWorksBento() {
                     </span>
                   </div>
                   <p className="text-[11px] font-sans text-zinc-300 leading-snug">
-                    Architected the Ruya Central Hub, an event-driven automation platform in Python & Flask.
+                    Architected high-throughput event streaming pipeline in Go & Kafka processing 250k events/sec.
                   </p>
                 </div>
 
@@ -142,7 +142,7 @@ export function HowItWorksBento() {
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
                         [SKILL_001]
                       </span>
-                      <span className="text-[11px] text-zinc-300">FastAPI</span>
+                      <span className="text-[11px] text-zinc-300">PostgreSQL</span>
                     </div>
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                   </div>
@@ -152,7 +152,7 @@ export function HowItWorksBento() {
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         [PROJ_001]
                       </span>
-                      <span className="text-[11px] text-zinc-300">Sentimental Chat</span>
+                      <span className="text-[11px] text-zinc-300">Raft Consensus</span>
                     </div>
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
                   </div>
@@ -329,7 +329,7 @@ export function HowItWorksBento() {
 
                 <div className="p-2 rounded bg-zinc-900/80 border border-zinc-800/60 text-[10px] text-zinc-300 font-sans leading-relaxed">
                   <span className="font-mono text-purple-400 font-bold">Reasoning: </span>
-                  Candidate profile has verified mastery in FastAPI, event-driven async pipelines ([EXP_001]), and LLM orchestration ([PROJ_001]).
+                  Candidate profile has verified mastery in Go, distributed event-driven pipelines ([EXP_001]), and consensus protocols ([PROJ_001]).
                 </div>
               </div>
             </div>
@@ -427,11 +427,11 @@ export function HowItWorksBento() {
                   </div>
                   <p className="text-zinc-400 text-[10px] leading-snug">
                     <span className="text-blue-400 font-mono text-[9px] font-bold mr-1">[EXP_001]</span>
-                    Architected Ruya Central Hub using Python & Flask...
+                    Architected event-driven streaming pipeline in Go & Kafka...
                   </p>
                   <p className="text-zinc-400 text-[10px] leading-snug">
                     <span className="text-purple-400 font-mono text-[9px] font-bold mr-1">[PROJ_001]</span>
-                    Developed companion integrating Gemini Flash...
+                    Engineered distributed Raft consensus engine with zero loss...
                   </p>
                 </div>
 
