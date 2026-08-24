@@ -1,0 +1,1 @@
+query { deployments(input: { serviceId: "e8c51d80-0aec-458d-9fab-b9f44291e081" }) { edges { node { id status meta } } } }
