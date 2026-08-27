@@ -68,15 +68,15 @@
   box-shadow: 0 0 50px -10px rgba(168, 85, 247, 0.25);
 }
 
-.glow-accent {
-  box-shadow: 0 0 40px -10px rgba(99, 102, 241, 0.25);
+.glow-mixed {
+  box-shadow: 0 0 70px -15px rgba(59, 130, 246, 0.2), 0 0 70px -15px rgba(168, 85, 247, 0.15);
 }
 
 .glass-card {
-  background: rgba(18, 18, 23, 0.6);
+  background: rgba(18, 18, 23, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(39, 39, 42, 0.7);
+  border: 1px solid rgba(39, 39, 42, 0.8);
 }
 
 .glass-card-hover {
@@ -86,7 +86,7 @@
 .glass-card-hover:hover {
   background: rgba(24, 24, 30, 0.85);
   border-color: rgba(63, 63, 70, 0.9);
-  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.6), 0 0 30px -10px rgba(99, 102, 241, 0.15);
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.6), 0 0 30px -10px rgba(59, 130, 246, 0.15);
   transform: translateY(-2px);
 }
 
@@ -94,105 +94,7 @@
 .bg-grid-pattern {
   background-size: 32px 32px;
   background-image: 
-    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }
-
-/* Micro-animations for Minimalist UI */
-@keyframes laser-sweep {
-  0% {
-    top: 0%;
-    opacity: 0.1;
-  }
-  20% {
-    opacity: 0.9;
-  }
-  80% {
-    opacity: 0.9;
-  }
-  100% {
-    top: 98%;
-    opacity: 0.1;
-  }
-}
-
-@keyframes float-subtle-1 {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-5px) rotate(0.5deg);
-  }
-}
-
-@keyframes float-subtle-2 {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-7px) rotate(-0.5deg);
-  }
-}
-
-@keyframes float-subtle-3 {
-  0%, 100% {
-    transform: translateY(0px) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-4px) rotate(0.8deg);
-  }
-}
-
-@keyframes funnel-drop {
-  0% {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  30% {
-    opacity: 1;
-  }
-  70% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(35px);
-    opacity: 0;
-  }
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.5;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(0.95);
-    opacity: 0.5;
-  }
-}
-
-.animate-laser-sweep {
-  animation: laser-sweep 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-.animate-float-1 {
-  animation: float-subtle-1 4s ease-in-out infinite;
-}
-
-.animate-float-2 {
-  animation: float-subtle-2 5s ease-in-out infinite 0.5s;
-}
-
-.animate-float-3 {
-  animation: float-subtle-3 4.5s ease-in-out infinite 1s;
-}
-
-.animate-pulse-ring {
-  animation: pulse-ring 3s ease-in-out infinite;
-}
-
 
