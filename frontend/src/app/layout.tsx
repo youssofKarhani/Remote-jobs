@@ -26,18 +26,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.variable} ${firaCode.variable} font-sans min-h-screen bg-zinc-950 text-zinc-100 relative selection:bg-blue-600/30 selection:text-blue-200 overflow-x-hidden`}>
-        {/* Ambient background glowing gradients */}
+      <body className={`${inter.variable} ${firaCode.variable} font-sans min-h-screen bg-zinc-950 text-zinc-100 relative selection:bg-indigo-500/30 selection:text-indigo-200 overflow-x-hidden`}>
+        {/* Ambient background subtle lighting */}
         <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
-          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] opacity-70" />
-          <div className="absolute top-[20%] right-[-10%] w-[500px] h-[400px] bg-purple-600/10 rounded-full blur-[140px] opacity-60" />
-          <div className="absolute top-[60%] left-[-10%] w-[600px] h-[500px] bg-indigo-600/10 rounded-full blur-[150px] opacity-50" />
-          <div className="absolute inset-0 bg-grid-pattern opacity-40" />
+          <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-indigo-600/5 rounded-full blur-[140px]" />
+          <div className="absolute top-[40%] right-[-5%] w-[450px] h-[350px] bg-violet-600/5 rounded-full blur-[160px]" />
+          <div className="absolute inset-0 bg-grid-pattern opacity-30" />
         </div>
 
         <div className="relative flex min-h-screen flex-col">
           <Navbar />
-          <main className="flex-1 container py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <main className="flex-1 container py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {children}
           </main>
         </div>
@@ -45,4 +44,5 @@ export default function RootLayout({
     </html>
   );
 }
+
 
