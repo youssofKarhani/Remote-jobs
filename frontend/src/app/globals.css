@@ -98,3 +98,100 @@
     linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
 }
 
+/* Micro-animations for Minimalist UI */
+@keyframes laser-sweep {
+  0% {
+    top: 0%;
+    opacity: 0.1;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  80% {
+    opacity: 0.9;
+  }
+  100% {
+    top: 98%;
+    opacity: 0.1;
+  }
+}
+
+@keyframes float-subtle-1 {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(0.5deg);
+  }
+}
+
+@keyframes float-subtle-2 {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-7px) rotate(-0.5deg);
+  }
+}
+
+@keyframes float-subtle-3 {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(0.8deg);
+  }
+}
+
+@keyframes funnel-drop {
+  0% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(35px);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.5;
+  }
+}
+
+.animate-laser-sweep {
+  animation: laser-sweep 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-float-1 {
+  animation: float-subtle-1 4s ease-in-out infinite;
+}
+
+.animate-float-2 {
+  animation: float-subtle-2 5s ease-in-out infinite 0.5s;
+}
+
+.animate-float-3 {
+  animation: float-subtle-3 4.5s ease-in-out infinite 1s;
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 3s ease-in-out infinite;
+}
+
