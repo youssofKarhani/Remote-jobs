@@ -1,4 +1,5 @@
-from typing import List, Optional
+from typing import List, Optional, Union
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -32,10 +33,26 @@ class Settings(BaseSettings):
     LLM_MODEL_EXTRACTION: str = "llama3"
 
     # CORS Settings
-    CORS_ORIGINS: List[str] = [
+    CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
+
+    @field_validator("CORS_ORIGINS")
+    @classmethod
+    def assemble_cors_origins(cls, v):
+        if isinstance(v, str):
+            v_trimmed = v.strip()
+            if v_trimmed.startswith("[") and v_trimmed.endswith("]"):
+                import json
+                try:
+                    parsed = json.loads(v_trimmed)
+                    if isinstance(parsed, list):
+                        return [str(x).strip() for x in parsed]
+                except Exception:
+                    pass
+            return [origin.strip() for origin in v_trimmed.split(",") if origin.strip()]
+        return v
 
 
 settings = Settings()

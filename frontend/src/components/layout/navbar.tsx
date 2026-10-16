@@ -2,37 +2,43 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Briefcase, FileUp, Settings2, User, Sparkles, Terminal, ShieldCheck } from "lucide-react";
+import { Briefcase, FileUp, Settings2, User as UserIcon, Sparkles, LogIn, LogOut, Compass, FolderKanban } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import { AuthDialog } from "@/components/auth/auth-dialog";
+import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
+  { href: "/onboarding", label: "Get Started", icon: Compass },
   { href: "/cv-upload", label: "CV Ingestion", icon: FileUp },
-  { href: "/profile", label: "Evidence Bank", icon: User },
+  { href: "/profile", label: "Evidence Bank", icon: UserIcon },
   { href: "/preferences", label: "Preferences", icon: Settings2 },
   { href: "/jobs", label: "Jobs Feed", icon: Briefcase },
+  { href: "/applications", label: "ATS Pipeline", icon: FolderKanban },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
+  const { user, isAuthenticated, logout, loginAsDemo } = useAuth();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-800/80 bg-zinc-950/75 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60">
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/70">
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
         <div className="flex items-center space-x-8">
           <Link href="/" className="flex items-center space-x-2.5 group">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 p-0.5 shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-all duration-300">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-0.5 shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-all duration-300">
               <div className="h-full w-full bg-zinc-950 rounded-[6px] flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-blue-400 group-hover:scale-110 transition-transform duration-300" />
+                <Sparkles className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-transform duration-300" />
               </div>
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-sm tracking-tight text-zinc-100 flex items-center gap-1.5">
                 RemoteJobs
-                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">
                   PLATFORM
                 </span>
               </span>
-              <span className="text-[10px] text-zinc-400 font-mono">Anti-Hallucination AI</span>
+              <span className="text-[10px] text-zinc-400 font-sans">Deterministic AI Pipeline</span>
             </div>
           </Link>
 
@@ -51,7 +57,7 @@ export function Navbar() {
                       : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
                   )}
                 >
-                  <Icon className={cn("h-3.5 w-3.5", isActive ? "text-blue-400" : "text-zinc-500")} />
+                  <Icon className={cn("h-3.5 w-3.5", isActive ? "text-violet-400" : "text-zinc-500")} />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -59,19 +65,50 @@ export function Navbar() {
           </nav>
         </div>
 
-        <div className="flex items-center space-x-3">
-          <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-[11px] font-mono text-emerald-400">
+        <div className="flex items-center space-x-2.5">
+          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-[11px] font-mono text-emerald-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>FastAPI • Online</span>
+            <span>Pipeline &bull; Active</span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-mono bg-zinc-900/80 px-2.5 py-1.5 rounded-lg border border-zinc-800">
-            <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
-            <span>v1.0 Immutable</span>
-          </div>
+          {isAuthenticated && user ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-mono bg-zinc-900/90 px-3 py-1.5 rounded-lg border border-zinc-800">
+                <UserIcon className="h-3.5 w-3.5 text-violet-400" />
+                <span className="max-w-[120px] truncate">{user.full_name || user.email}</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={logout}
+                title="Sign out"
+                className="h-8 px-2.5 text-xs border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loginAsDemo}
+                className="h-8 px-2.5 text-xs border-violet-900/50 bg-violet-950/30 hover:bg-violet-900/50 text-violet-300 gap-1.5 font-mono"
+              >
+                <Sparkles className="h-3 w-3 text-violet-400" />
+                <span className="hidden sm:inline">Quick</span> Demo
+              </Button>
+
+              <AuthDialog>
+                <Button size="sm" className="h-8 px-3 text-xs bg-violet-600 hover:bg-violet-500 text-white gap-1.5 font-medium">
+                  <LogIn className="h-3.5 w-3.5" />
+                  Sign In
+                </Button>
+              </AuthDialog>
+            </div>
+          )}
         </div>
       </div>
     </header>
   );
 }
-

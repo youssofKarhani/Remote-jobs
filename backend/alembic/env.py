@@ -21,9 +21,11 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Set database URL from settings if not already explicitly set in config
-if not config.get_main_option("sqlalchemy.url") and settings.DATABASE_URL:
-    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set database URL from application settings (supports PostgreSQL on Railway/Docker while allowing tests to supply a custom URL)
+current_url = config.get_main_option("sqlalchemy.url")
+if not current_url or current_url == "sqlite:///./remotejobs_dev.db":
+    if settings.DATABASE_URL and settings.DATABASE_URL != "sqlite:///./remotejobs_dev.db":
+        config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 # add your model's MetaData object here
 # for 'autogenerate' support

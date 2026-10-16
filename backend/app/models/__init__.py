@@ -18,6 +18,11 @@ from app.models.job import (
     JobSourceRecord,
 )
 
+from app.models.matching import JobMatch, JobAssessment, PreScreenResultRecord
+from app.models.document import GeneratedDocument
+from app.models.cover_letter import CoverLetter
+from app.models.application import Application, ApplicationEvent
+
 __all__ = [
     "Base",
     "TimestampMixin",
@@ -35,4 +40,12 @@ __all__ = [
     "JobSource",
     "Job",
     "JobSourceRecord",
+    "JobMatch",
+    "JobAssessment",
+    "PreScreenResultRecord",
+    "GeneratedDocument",
+    "CoverLetter",
+    "Application",
+    "ApplicationEvent",
 ]
+

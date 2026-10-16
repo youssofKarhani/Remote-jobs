@@ -429,7 +429,8 @@ class TestAlembicMigrationsCycle:
             # Final upgrade to verify clean state
             command.upgrade(alembic_cfg, "head")
             inspector_final = inspect(engine)
-            assert len(inspector_final.get_table_names()) == 14  # 13 application tables + alembic_version
+            assert len(inspector_final.get_table_names()) == 21  # 20 application tables + alembic_version
+
 
             engine.dispose()
 

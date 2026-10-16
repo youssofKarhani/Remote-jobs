@@ -152,3 +152,71 @@ class EvidenceItemUpdate(BaseModel):
     category: Optional[str] = None
     variants: Optional[Dict[str, str]] = None
     is_verified: Optional[bool] = None
+
+
+class EvidenceItemCreate(BaseModel):
+    experience_record_id: Optional[uuid.UUID] = None
+    raw_text: str = Field(min_length=1, description="Atomic achievement or responsibility statement")
+    category: str = Field(default="experience")
+    variants: Optional[Dict[str, str]] = None
+    is_verified: bool = False
+
+
+class ExperienceRecordCreate(BaseModel):
+    company_name: str = Field(min_length=1)
+    role_title: str = Field(min_length=1)
+    location: Optional[str] = None
+    start_date: str = Field(min_length=1)
+    end_date: Optional[str] = None
+    is_current: bool = False
+    description: Optional[str] = None
+
+
+class ExperienceRecordUpdate(BaseModel):
+    company_name: Optional[str] = None
+    role_title: Optional[str] = None
+    location: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    is_current: Optional[bool] = None
+    description: Optional[str] = None
+
+
+class SkillCreate(BaseModel):
+    name: str = Field(min_length=1)
+    category: str = Field(default="backend")
+    proficiency: Optional[str] = None
+    years_of_experience: Optional[float] = None
+    is_verified: bool = False
+
+
+class ProjectCreate(BaseModel):
+    title: str = Field(min_length=1)
+    category: Optional[str] = None
+    description: str = Field(min_length=1)
+    technologies: List[str] = Field(default_factory=list)
+    url: Optional[str] = None
+    github_url: Optional[str] = None
+    is_verified: bool = False
+
+
+class CertificationCreate(BaseModel):
+    name: str = Field(min_length=1)
+    issuing_organization: str = Field(min_length=1)
+    issue_date: Optional[str] = None
+    expiration_date: Optional[str] = None
+    credential_id: Optional[str] = None
+    credential_url: Optional[str] = None
+    is_verified: bool = False
+
+
+class EducationRecordCreate(BaseModel):
+    institution: str = Field(min_length=1)
+    degree: str = Field(min_length=1)
+    field_of_study: str = Field(min_length=1)
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    grade: Optional[str] = None
+    activities: Optional[str] = None
+    is_verified: bool = False
+

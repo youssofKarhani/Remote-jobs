@@ -1,7 +1,7 @@
 """CV Upload and Document Extraction router."""
 
 import uuid
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -22,6 +22,7 @@ router = APIRouter(prefix="/cv", tags=["CV Ingestion"])
 @router.post("/upload", response_model=CVUploadResponse, status_code=status.HTTP_200_OK)
 async def upload_cv_document(
     file: UploadFile = File(...),
+    replace_existing: bool = Query(False, description="Whether to replace all existing candidate evidence"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -59,7 +60,7 @@ async def upload_cv_document(
         db=db,
         user=current_user,
         raw_text=raw_text,
-        replace_existing=True,
+        replace_existing=replace_existing,
     )
 
     return CVUploadResponse(
@@ -74,6 +75,7 @@ async def upload_cv_document(
 @router.post("/parse-text", response_model=CVUploadResponse)
 async def parse_raw_cv_text(
     payload: CVRawTextRequest,
+    replace_existing: bool = Query(False, description="Whether to replace all existing candidate evidence"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -86,11 +88,12 @@ async def parse_raw_cv_text(
             detail="Provided resume text is too short to extract meaningful evidence.",
         )
 
+    effective_replace = payload.replace_existing if payload.replace_existing is not None else replace_existing
     summary = await cv_extraction_service.extract_and_persist(
         db=db,
         user=current_user,
         raw_text=payload.text.strip(),
-        replace_existing=True,
+        replace_existing=effective_replace,
     )
 
     return CVUploadResponse(

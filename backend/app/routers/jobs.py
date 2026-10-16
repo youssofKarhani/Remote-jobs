@@ -34,6 +34,7 @@ async def list_jobs(
     remote_only: Optional[bool] = Query(None, description="Filter remote only"),
     job_types: Optional[str] = Query(None, description="Comma-separated job types"),
     sort_by: str = Query("newest", pattern="^(newest|oldest|company)$"),
+    min_salary: Optional[float] = Query(None, description="Minimum salary filter"),
     apply_preferences: bool = Query(False, description="Filter by candidate stored preferences"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -54,6 +55,19 @@ async def list_jobs(
     if remote_only is True:
         query = query.filter(Job.remote.is_(True))
 
+    if min_salary is not None:
+        query = query.filter((Job.salary_min >= min_salary) | (Job.salary_max >= min_salary))
+
+    if job_types and job_types.strip():
+        from sqlalchemy import cast, or_, String
+        req_types = [t.strip().lower() for t in job_types.split(",") if t.strip()]
+        if req_types:
+            type_conditions = []
+            for t in req_types:
+                type_conditions.append(cast(Job.job_types, String).ilike(f"%{t}%"))
+                type_conditions.append(Job.title.ilike(f"%{t}%"))
+            query = query.filter(or_(*type_conditions))
+
     # Apply sorting
     if sort_by == "oldest":
         query = query.order_by(Job.published_at.asc())
@@ -62,20 +76,28 @@ async def list_jobs(
     else:
         query = query.order_by(Job.published_at.desc())
 
-    all_matching = query.all()
-
     # Apply candidate deterministic preference filtering if requested
     if apply_preferences:
         pref = db.query(CandidatePreference).filter(CandidatePreference.user_id == current_user.id).first()
-        filtered = deterministic_filter_service.filter_jobs(all_matching, pref)
-    else:
-        filtered = all_matching
+        if pref:
+            if pref.remote_only:
+                query = query.filter(Job.remote.is_(True))
+            if pref.excluded_companies:
+                for exc in pref.excluded_companies:
+                    if exc and exc.strip():
+                        query = query.filter(~Job.company_name.ilike(f"%{exc.strip()}%"))
 
-    total_items = len(filtered)
-    total_pages = max(1, ceil(total_items / limit))
-    start_idx = (page - 1) * limit
-    end_idx = start_idx + limit
-    page_items = filtered[start_idx:end_idx]
+        all_matching = query.all()
+        filtered = deterministic_filter_service.filter_jobs(all_matching, pref)
+        total_items = len(filtered)
+        total_pages = max(1, ceil(total_items / limit))
+        start_idx = (page - 1) * limit
+        end_idx = start_idx + limit
+        page_items = filtered[start_idx:end_idx]
+    else:
+        total_items = query.count()
+        total_pages = max(1, ceil(total_items / limit))
+        page_items = query.offset((page - 1) * limit).limit(limit).all()
 
     job_reads = [JobRead.model_validate(j) for j in page_items]
 

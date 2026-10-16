@@ -1,13 +1,31 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.database import init_db
 from app.routers import (
+    applications_router,
     auth_router,
+    cover_letters_router,
     cv_router,
     jobs_router,
+    matching_router,
     preferences_router,
     profile_router,
+    tailoring_router,
 )
+
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Ensure database schema is initialized on startup
+    try:
+        init_db()
+    except Exception as e:
+        print(f"Warning: Failed to auto-initialize DB on startup: {e}")
+    yield
+
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -15,6 +33,7 @@ app = FastAPI(
     description="Multi-user AI Job Application and Discovery Platform API",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -32,6 +51,11 @@ app.include_router(cv_router, prefix="/api/v1")
 app.include_router(profile_router, prefix="/api/v1")
 app.include_router(preferences_router, prefix="/api/v1")
 app.include_router(jobs_router, prefix="/api/v1")
+app.include_router(matching_router, prefix="/api/v1")
+app.include_router(tailoring_router, prefix="/api/v1")
+app.include_router(cover_letters_router, prefix="/api/v1")
+app.include_router(applications_router, prefix="/api/v1")
+
 
 
 @app.get("/api/health", tags=["Health"])

@@ -12,7 +12,7 @@ class ArbeitnowSource:
     """Connector for Arbeitnow public job board API (https://arbeitnow.com/api/job-board-api)."""
 
     name: str = "arbeitnow"
-    base_url: str = "https://arbeitnow.com/api/job-board-api"
+    base_url: str = "https://www.arbeitnow.com/api/job-board-api"
 
     def __init__(self, base_url: Optional[str] = None, timeout_seconds: float = 10.0):
         if base_url:
@@ -37,7 +37,7 @@ class ArbeitnowSource:
 
         while retries <= max_retries:
             try:
-                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
                     response = await client.get(url, headers=headers)
 
                     if response.status_code == 429:

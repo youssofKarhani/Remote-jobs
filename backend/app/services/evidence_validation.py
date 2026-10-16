@@ -134,6 +134,7 @@ def resolve_verified_evidence_text(
             if item:
                 resolved.append({
                     "stable_id": item.stable_id,
+                    "experience_record_id": item.experience_record_id,
                     "type": "experience_bullet",
                     "text": item.raw_text,
                     "category": item.category,

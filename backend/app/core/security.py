@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Union
 
 import bcrypt
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -96,20 +96,23 @@ def decode_access_token(token: str) -> Dict[str, Any]:
 
 async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme),
+    token_query: Optional[str] = Query(None, alias="token"),
     db: Session = Depends(get_db),
 ) -> User:
     """FastAPI dependency to authenticate requests and inject current user.
     
     Scoping all tenant operations by `current_user.id` guarantees tenant isolation.
+    Supports both Authorization: Bearer <token> header and ?token=<token> query parameter (for direct file downloads).
     """
-    if not token:
+    effective_token = token or token_query
+    if not effective_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication credentials were not provided",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    payload = decode_access_token(token)
+    payload = decode_access_token(effective_token)
     user_id_str: Optional[str] = payload.get("sub")
     if not user_id_str:
         raise HTTPException(

@@ -80,3 +80,6 @@ Thumbs.db
 # Agent run artifacts (keep .agents/rules)
 .agents/*
 !.agents/rules/
+
+# Storage & generated uploads
+backend/storage/

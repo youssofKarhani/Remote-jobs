@@ -9,8 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { preferencesApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { AuthDialog } from "@/components/auth/auth-dialog";
+import { Sparkles } from "lucide-react";
 
 export default function PreferencesPage() {
+  const { isAuthenticated, loginAsDemo } = useAuth();
   const [targetRoles, setTargetRoles] = useState<string[]>([]);
   const [newRole, setNewRole] = useState("");
   const [locations, setLocations] = useState<string[]>([]);
@@ -29,9 +33,20 @@ export default function PreferencesPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadPreferences() {
+      if (!isAuthenticated) {
+        setTargetRoles([]);
+        setLocations([]);
+        setRemoteOnly(false);
+        setJobTypes([]);
+        setMinSalary("");
+        setExcludedCompanies([]);
+        setExcludedKeywords([]);
+        return;
+      }
       setIsLoading(true);
       try {
         const pref = await preferencesApi.getPreferences();
@@ -47,14 +62,14 @@ export default function PreferencesPage() {
           if (pref.excluded_companies) setExcludedCompanies(pref.excluded_companies);
           if (pref.excluded_keywords) setExcludedKeywords(pref.excluded_keywords);
         }
-      } catch (err) {
-        console.log("No stored candidate preferences found yet.");
+      } catch (err: any) {
+        console.log("No stored candidate preferences found yet:", err?.message);
       } finally {
         setIsLoading(false);
       }
     }
     loadPreferences();
-  }, []);
+  }, [isAuthenticated]);
 
   const handleAddRole = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +112,13 @@ export default function PreferencesPage() {
   };
 
   const handleSave = async () => {
+    if (!isAuthenticated) {
+      setSaveError("Please sign in or use Demo Mode to persist candidate preferences.");
+      setTimeout(() => setSaveError(null), 5000);
+      return;
+    }
     setIsSaving(true);
+    setSaveError(null);
     try {
       await preferencesApi.updatePreferences({
         target_roles: targetRoles,
@@ -113,10 +134,9 @@ export default function PreferencesPage() {
       });
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 3000);
-    } catch (err) {
-      console.warn("Preferences update offline, updated locally.");
-      setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 3000);
+    } catch (err: any) {
+      setSaveError(err.message || "Failed to update preferences.");
+      setTimeout(() => setSaveError(null), 5000);
     } finally {
       setIsSaving(false);
     }
@@ -128,6 +148,38 @@ export default function PreferencesPage() {
         title="Deterministic Preferences"
         subtitle="Configure fast, zero-cost deterministic filters executed before any AI matching occurs."
       />
+
+      {!isAuthenticated && (
+        <Card className="p-8 text-center glass-card border-dashed border-zinc-800 bg-zinc-950/40 space-y-4">
+          <div className="h-10 w-10 rounded-xl bg-blue-950/60 border border-blue-800/40 flex items-center justify-center text-blue-400 mx-auto">
+            <Sliders className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-zinc-200">Sign in to Save Filtering Rules</h3>
+            <p className="text-xs text-zinc-400 max-w-md mx-auto">
+              Configure deterministic location, title, and salary filters to pre-screen opportunities before expensive AI matching. Sign in or launch One-Click Demo Mode to persist preferences.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Button size="sm" onClick={loginAsDemo} className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-500 text-white">
+              <Sparkles className="h-3.5 w-3.5" />
+              One-Click Demo Mode
+            </Button>
+            <AuthDialog>
+              <Button size="sm" variant="outline" className="text-xs border-zinc-800 bg-zinc-900/60 text-zinc-300">
+                Sign In / Register
+              </Button>
+            </AuthDialog>
+          </div>
+        </Card>
+      )}
+
+      {saveError && (
+        <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30 flex items-center gap-3 text-destructive text-sm">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span>{saveError}</span>
+        </div>
+      )}
 
       <div className="grid gap-6">
         <Card>

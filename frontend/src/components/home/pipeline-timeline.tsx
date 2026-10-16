@@ -27,7 +27,7 @@ const STEPS: StepData[] = [
   {
     id: 1,
     label: "Extract",
-    copy: "Your base CV is deconstructed into verified, reusable data points.",
+    copy: "Your base CVs are deconstructed into verified, reusable data points.",
     badge: "Step 01",
   },
   {
@@ -39,7 +39,7 @@ const STEPS: StepData[] = [
   {
     id: 3,
     label: "Match",
-    copy: "Our AI scores the surviving jobs against your profile to find high-confidence fits.",
+    copy: "Our AI scores surviving jobs against your profile to find high-confidence fits.",
     badge: "Step 03",
   },
   {

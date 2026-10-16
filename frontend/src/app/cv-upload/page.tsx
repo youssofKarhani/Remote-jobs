@@ -10,8 +10,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { cvApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { AuthDialog } from "@/components/auth/auth-dialog";
 
 export default function CVUploadPage() {
+  const { isAuthenticated, loginAsDemo } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [rawText, setRawText] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -34,6 +37,10 @@ export default function CVUploadPage() {
   };
 
   const handleStartExtraction = async () => {
+    if (!isAuthenticated) {
+      setErrorMessage("Please sign in or use Demo Mode to extract and persist resume evidence.");
+      return;
+    }
     setIsProcessing(true);
     setErrorMessage(null);
     setProgress(20);
@@ -96,6 +103,50 @@ export default function CVUploadPage() {
           <span>{errorMessage}</span>
         </div>
       )}
+
+      {!isAuthenticated && (
+        <Card className="p-8 text-center glass-card border-dashed border-zinc-800 bg-zinc-950/40 space-y-4">
+          <div className="h-10 w-10 rounded-xl bg-blue-950/60 border border-blue-800/40 flex items-center justify-center text-blue-400 mx-auto">
+            <UploadCloud className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-zinc-200">Sign in to Ingest & Persist Evidence</h3>
+            <p className="text-xs text-zinc-400 max-w-md mx-auto">
+              Structured extraction transforms your raw CV into immutable, stable-identified records in your private Candidate Evidence Bank.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <Button size="sm" onClick={loginAsDemo} className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-500 text-white">
+              <Sparkles className="h-3.5 w-3.5" />
+              One-Click Demo Mode
+            </Button>
+            <AuthDialog>
+              <Button size="sm" variant="outline" className="text-xs border-zinc-800 bg-zinc-900/60 text-zinc-300">
+                Sign In / Register
+              </Button>
+            </AuthDialog>
+          </div>
+        </Card>
+      )}
+
+      {/* Intent-First Guided Onboarding Callout */}
+      <div className="p-4 rounded-2xl border border-violet-500/30 bg-violet-950/20 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-violet-950/80 border border-violet-800/40 text-violet-400">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-zinc-100">Intent-First Guided Flow Available</h4>
+            <p className="text-xs text-zinc-400">Discover target roles, deduplicate multiple resumes, and calibrate skill metrics step-by-step.</p>
+          </div>
+        </div>
+        <Link href="/onboarding">
+          <Button size="sm" className="bg-violet-600 hover:bg-violet-500 text-white text-xs rounded-full px-5 h-9 shrink-0 gap-1.5 shadow-md shadow-violet-600/30">
+            <span>Launch Flow</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </Link>
+      </div>
 
       {!extractionResult ? (
         <Card>

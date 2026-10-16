@@ -68,6 +68,14 @@
   box-shadow: 0 0 50px -10px rgba(168, 85, 247, 0.25);
 }
 
+.glow-violet {
+  box-shadow: 0 0 45px -8px rgba(139, 92, 246, 0.35);
+}
+
+.glow-accent {
+  box-shadow: 0 0 35px -5px rgba(124, 58, 237, 0.4);
+}
+
 .glow-mixed {
   box-shadow: 0 0 70px -15px rgba(59, 130, 246, 0.2), 0 0 70px -15px rgba(168, 85, 247, 0.15);
 }
