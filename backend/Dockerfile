@@ -2,8 +2,9 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
 WORKDIR /app
 
-# Enable bytecode compilation
+# Enable bytecode compilation and add virtualenv to PATH
 ENV UV_COMPILE_BYTECODE=1
+ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy project files
 COPY pyproject.toml uv.lock* ./
