@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { 
   Puzzle, 
   Filter, 
@@ -52,23 +52,100 @@ const STEPS: StepData[] = [
 
 export function PipelineTimeline() {
   const [activeStep, setActiveStep] = useState<number>(1);
+  const [nodeCenters, setNodeCenters] = useState<number[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const nodeRefs = useRef<(HTMLDivElement | null)[]>([]);
   const stepRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  // Dynamically calculate each step node's exact center relative to the timeline container
+  const updatePositions = useCallback(() => {
+    if (!containerRef.current) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const centers: number[] = [];
+
+    for (let i = 0; i < STEPS.length; i++) {
+      const nodeEl = nodeRefs.current[i];
+      if (nodeEl) {
+        const nodeRect = nodeEl.getBoundingClientRect();
+        centers.push(nodeRect.top + nodeRect.height / 2 - containerRect.top);
+      }
+    }
+
+    if (centers.length === STEPS.length) {
+      setNodeCenters(centers);
+    }
+  }, []);
+
+  // Recalculate on mount, container resize, and window resize
+  useEffect(() => {
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== "undefined" && containerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        updatePositions();
+      });
+      resizeObserver.observe(containerRef.current);
+    }
+
+    const frameId = requestAnimationFrame(updatePositions);
+    window.addEventListener("resize", updatePositions);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      if (resizeObserver) resizeObserver.disconnect();
+      window.removeEventListener("resize", updatePositions);
+    };
+  }, [updatePositions]);
+
+  // Synchronize active step smoothly with scroll
   useEffect(() => {
     const handleScroll = () => {
-      stepRefs.current.forEach((ref, index) => {
-        if (!ref) return;
-        const rect = ref.getBoundingClientRect();
-        // If element is in middle of viewport
-        if (rect.top <= window.innerHeight * 0.55 && rect.bottom >= window.innerHeight * 0.2) {
-          setActiveStep(index + 1);
+      if (!nodeRefs.current.length) return;
+
+      // Focal threshold at 55% of the viewport (natural eye-focus line)
+      const focalY = window.innerHeight * 0.55;
+      let nextStep = 1;
+
+      // Ensure last step activates when scrolled to document bottom
+      const isAtBottom =
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 60;
+
+      if (isAtBottom) {
+        nextStep = STEPS.length;
+      } else {
+        for (let i = 0; i < STEPS.length; i++) {
+          const node = nodeRefs.current[i];
+          if (!node) continue;
+          const rect = node.getBoundingClientRect();
+          const centerY = rect.top + rect.height / 2;
+          if (centerY <= focalY) {
+            nextStep = i + 1;
+          }
         }
-      });
+      }
+
+      setActiveStep((prev) => (prev !== nextStep ? nextStep : prev));
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    const frameId = requestAnimationFrame(handleScroll);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
+
+  const handleStepClick = (stepId: number, index: number) => {
+    setActiveStep(stepId);
+    const node = nodeRefs.current[index];
+    if (node) {
+      const rect = node.getBoundingClientRect();
+      const targetScrollY =
+        window.scrollY + (rect.top + rect.height / 2) - window.innerHeight * 0.5;
+      window.scrollTo({ top: targetScrollY, behavior: "smooth" });
+    }
+  };
 
   return (
     <section className="relative w-full max-w-5xl mx-auto my-16 md:my-28 px-4">
@@ -87,17 +164,42 @@ export function PipelineTimeline() {
       </div>
 
       {/* Central Timeline Container */}
-      <div className="relative">
+      <div ref={containerRef} className="relative">
         
-        {/* Central Vertical Line */}
-        <div className="absolute left-6 md:left-1/2 top-0 bottom-0 w-px bg-zinc-800 -translate-x-1/2" />
-        
-        {/* Glowing Progress Line */}
+        {/* Central Vertical Line (Connects first node down to last node) */}
         <div 
-          className="absolute left-6 md:left-1/2 top-0 w-[2px] bg-gradient-to-b from-indigo-500 via-violet-500 to-indigo-400 -translate-x-1/2 transition-all duration-700 ease-out"
-          style={{
-            height: `${((activeStep - 1) / (STEPS.length - 1)) * 100}%`,
-          }}
+          className="absolute left-6 md:left-1/2 w-px bg-zinc-800 -translate-x-1/2 transition-opacity duration-300 pointer-events-none z-0"
+          style={
+            nodeCenters.length === STEPS.length
+              ? {
+                  top: `${nodeCenters[0]}px`,
+                  height: `${nodeCenters[nodeCenters.length - 1] - nodeCenters[0]}px`,
+                  opacity: 1,
+                }
+              : {
+                  top: 0,
+                  bottom: 0,
+                  opacity: 0,
+                }
+          }
+        />
+        
+        {/* Glowing Progress Line (Stops precisely at the active node center) */}
+        <div 
+          className="absolute left-6 md:left-1/2 w-[2px] bg-gradient-to-b from-indigo-500 via-violet-500 to-indigo-400 -translate-x-1/2 transition-[height] duration-500 ease-out shadow-[0_0_12px_rgba(99,102,241,0.6)] pointer-events-none rounded-full z-10"
+          style={
+            nodeCenters.length === STEPS.length
+              ? {
+                  top: `${nodeCenters[0]}px`,
+                  height: `${Math.max(0, nodeCenters[activeStep - 1] - nodeCenters[0])}px`,
+                  opacity: 1,
+                }
+              : {
+                  top: 0,
+                  height: 0,
+                  opacity: 0,
+                }
+          }
         />
 
         {/* Steps */}
@@ -111,11 +213,12 @@ export function PipelineTimeline() {
               <div
                 key={step.id}
                 ref={(el) => { stepRefs.current[index] = el; }}
-                onClick={() => setActiveStep(step.id)}
+                onClick={() => handleStepClick(step.id, index)}
                 className="relative grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 items-center cursor-pointer group"
               >
                 {/* Center Node Indicator */}
                 <div 
+                  ref={(el) => { nodeRefs.current[index] = el; }}
                   className={`absolute left-6 md:left-1/2 top-0 md:top-1/2 -translate-x-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 rounded-full border-2 transition-all duration-500 ${
                     isActive
                       ? "bg-zinc-950 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.6)] scale-110"
