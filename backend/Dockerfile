@@ -21,5 +21,5 @@ RUN uv sync --no-dev
 # Expose port
 EXPOSE 8000
 
-# Run migrations and start uvicorn server
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start uvicorn server
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
