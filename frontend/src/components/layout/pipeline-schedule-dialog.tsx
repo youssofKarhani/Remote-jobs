@@ -233,13 +233,12 @@ export function PipelineScheduleDialog() {
     ? Intl.DateTimeFormat().resolvedOptions().timeZone
     : "UTC";
 
-  const getBadgeText = () => {
-    if (!mounted) return "Next Run: 06:00 UTC";
-    if (timeState.isRunning) return "Pipeline Running...";
+  const getBadgeTime = () => {
+    if (!mounted) return "06:00 UTC";
     if (timeState.hours > 0) {
-      return `Next Run: ${timeState.hours}h ${timeState.minutes}m`;
+      return `${timeState.hours}h ${timeState.minutes}m`;
     }
-    return `Next Run: ${timeState.minutes}m ${timeState.seconds}s`;
+    return `${timeState.minutes}m ${timeState.seconds}s`;
   };
 
   const isUrgent = mounted && !timeState.isRunning && timeState.hours === 0 && timeState.minutes < 60;
@@ -251,7 +250,7 @@ export function PipelineScheduleDialog() {
           <button
             type="button"
             aria-label="View AI Pipeline Timetable and Cutoff"
-            className={`hidden lg:flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-mono transition-all duration-200 cursor-pointer shadow-sm select-none ${
+            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer shadow-sm select-none ${
               timeState.isRunning
                 ? "bg-violet-950/60 border border-violet-700/60 text-violet-300 hover:bg-violet-900/60"
                 : isUrgent
@@ -260,7 +259,7 @@ export function PipelineScheduleDialog() {
             }`}
           >
             <span
-              className={`h-1.5 w-1.5 rounded-full ${
+              className={`h-1.5 w-1.5 rounded-full shrink-0 ${
                 timeState.isRunning
                   ? "bg-violet-400 animate-ping"
                   : isUrgent
@@ -268,8 +267,15 @@ export function PipelineScheduleDialog() {
                   : "bg-emerald-400 animate-pulse"
               }`}
             />
-            <Clock className="h-3 w-3 opacity-80" />
-            <span>{getBadgeText()}</span>
+            <Clock className="h-3 w-3 opacity-80 shrink-0" />
+            {mounted && timeState.isRunning ? (
+              <span>Pipeline Running...</span>
+            ) : (
+              <span>
+                <span className="hidden xl:inline">Next Run: </span>
+                {getBadgeTime()}
+              </span>
+            )}
           </button>
         </DialogTrigger>
 

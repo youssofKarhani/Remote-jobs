@@ -91,14 +91,16 @@ export function AuthDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {children || (
-          <Button size="sm" variant="default" className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-500 text-white">
-            <LogIn className="h-3.5 w-3.5" />
-            Sign In
-          </Button>
-        )}
-      </DialogTrigger>
+      {(children || !isControlled) && (
+        <DialogTrigger asChild>
+          {children || (
+            <Button size="sm" variant="default" className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-500 text-white">
+              <LogIn className="h-3.5 w-3.5" />
+              Sign In
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
         <DialogHeader className="space-y-1.5 text-left">
           <DialogTitle className="text-xl font-bold tracking-tight text-zinc-100">
