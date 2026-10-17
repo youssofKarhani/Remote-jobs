@@ -218,34 +218,26 @@ class CoverLetterService:
             strategy_framings["technical_depth"],
         )
 
-        evidence_paragraphs = []
-        for b in bullet_records:
-            evidence_paragraphs.append(f"• {b['text']}")
-
-        evidence_section = (
-            "Here are verified highlights from my track record that directly support this role:\n\n"
-            + "\n".join(evidence_paragraphs)
-            if evidence_paragraphs
-            else (
-                f"My core competencies span {', '.join(top_skills) if top_skills else 'modern Python, FastAPI, and PostgreSQL'}, "
-                f"with a consistent focus on code quality, testing, and automated delivery."
-            )
+        ai_res = await self.ai.generate_cover_letter(
+            candidate_profile_text=(
+                f"Candidate Name: {candidate_name}\n"
+                f"Headline: {profile.headline if profile and profile.headline else 'Software Professional'}\n"
+                f"Summary: {profile.summary if profile and profile.summary else ''}\n"
+                f"Email: {user.email}\n"
+                f"Top Skills: {', '.join(top_skills)}"
+            ),
+            job_details={
+                "title": role,
+                "company_name": company,
+                "location": location,
+                "description": job.description,
+            },
+            selected_evidence_items=bullet_records,
+            strategy=selected_strategy.id,
         )
-
-        letter_content = (
-            f"Dear Hiring Team at {company},\n\n"
-            f"I am writing to express my enthusiastic interest in the {role} position located in {location}. {opening_framing}\n\n"
-            f"{evidence_section}\n\n"
-            f"What particularly attracts me to {company} is your commitment to engineering excellence. "
-            f"I am confident that my technical grounding and alignment with your goals will allow me to make an "
-            f"immediate, positive contribution to your team.\n\n"
-            f"Thank you for your time and consideration. I welcome the opportunity to discuss how my experience "
-            f"aligns with {company}'s upcoming milestones.\n\n"
-            f"Sincerely,\n"
-            f"{candidate_name}\n"
-            f"{profile.headline if profile and profile.headline else 'Software Professional'}\n"
-            f"{user.email}"
-        )
+        letter_content = ai_res.letter_text
+        if ai_res.referenced_evidence_ids:
+            referenced_ids = ai_res.referenced_evidence_ids
 
         # 3. Upsert CoverLetter record in DB
         cover_letter = db.query(CoverLetter).filter(

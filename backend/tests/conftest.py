@@ -107,3 +107,11 @@ def client(db_session: Session) -> Generator:
         yield test_client
     app.dependency_overrides.clear()
 
+
+@pytest.fixture(autouse=True)
+def configure_test_ai(monkeypatch):
+    """Ensure tests run lightning fast by default using mock/deterministic heuristic provider."""
+    if not os.getenv("TEST_LIVE_AI"):
+        from app.integrations.llm_ai_service import ai_service
+        monkeypatch.setattr(ai_service, "provider", "mock")
+

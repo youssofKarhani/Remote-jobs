@@ -66,7 +66,16 @@ async def health_check():
         "app_name": settings.APP_NAME,
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
+        "llm_provider": settings.LLM_PROVIDER,
+        "llm_base_url": settings.LLM_BASE_URL,
     }
+
+
+@app.get("/api/v1/ai/status", tags=["AI Gateway"])
+async def get_ai_status():
+    """Diagnostic endpoint to inspect AI Gateway connection, models, and liveliness."""
+    from app.integrations.llm_ai_service import ai_service
+    return await ai_service.check_health()
 
 
 @app.get("/", tags=["Root"])

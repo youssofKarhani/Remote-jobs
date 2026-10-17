@@ -3,7 +3,7 @@
 Enforces that LLMs select verified evidence by stable ID and return strictly typed Pydantic structures.
 """
 
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 from pydantic import BaseModel, Field
 
 
@@ -165,6 +165,7 @@ class CoverLetterResult(BaseModel):
 # AIService Protocol Interface
 # ---------------------------------------------------------------------------
 
+@runtime_checkable
 class AIService(Protocol):
     """Protocol defining LLM gateway capabilities."""
 

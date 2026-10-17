@@ -19,10 +19,26 @@ import { LogIn, UserPlus, Sparkles, AlertCircle, Loader2 } from "lucide-react";
 interface AuthDialogProps {
   children?: React.ReactNode;
   defaultTab?: "login" | "register";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export function AuthDialog({ children, defaultTab = "login" }: AuthDialogProps) {
-  const [open, setOpen] = useState(false);
+export function AuthDialog({
+  children,
+  defaultTab = "login",
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
+}: AuthDialogProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = (next: boolean) => {
+    if (isControlled) {
+      setControlledOpen?.(next);
+    } else {
+      setInternalOpen(next);
+    }
+  };
   const [tab, setTab] = useState<"login" | "register">(defaultTab);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
