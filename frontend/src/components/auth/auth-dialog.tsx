@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -188,6 +189,16 @@ export function AuthDialog({ children, defaultTab = "login" }: AuthDialogProps) 
                 {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
                 Create Account
               </Button>
+              <p className="text-[11px] text-zinc-400 text-center pt-1 leading-normal">
+                By registering, you agree to our{" "}
+                <Link href="/terms" onClick={() => setOpen(false)} className="text-violet-400 hover:underline">
+                  Terms of Service
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" onClick={() => setOpen(false)} className="text-violet-400 hover:underline">
+                  Privacy Policy
+                </Link>.
+              </p>
             </form>
           </TabsContent>
         </Tabs>

@@ -16,9 +16,14 @@ const firaCode = Fira_Code({
 });
 
 export const metadata: Metadata = {
-  title: "RemoteJobs Platform - Deterministic AI Job Engineering",
+  title: "FindJobFit - Deterministic AI Job Engineering",
   description:
     "Upload your raw experience. We engineer the perfect application with zero hallucination and deterministic verifiable evidence.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({

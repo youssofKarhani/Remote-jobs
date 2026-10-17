@@ -1,13 +1,13 @@
 # Railway Access & Database Guide
 
-This rule documents how to access Railway services and the production PostgreSQL database for `youssofKarhani/Remote-jobs`.
+This rule documents how to access Railway services and the production PostgreSQL database for the platform.
 
 ## Railway Environment
 - **Project**: `ARJ` (`f942086f-01fd-485c-a39f-204dbf631680`)
 - **Environment**: `production` (`df8fc9d1-fffa-48bb-98f2-2af53105df7f`)
 - **Backend Service**: `Backend` (`281f9e6b-0993-4f55-839e-cb59a9403343`)
 - **Postgres Database**: `Postgres` (`44de9d0d-0d40-4aa4-9b23-b614bafc0d9d`)
-- **Frontend URL**: `https://frontend-production-a50a.up.railway.app`
+- **Frontend URL**: `https://findjobfit.de` (also `https://automated-job-application.up.railway.app`)
 
 ## Railway CLI Commands
 - Status: `railway status`

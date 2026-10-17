@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Briefcase, FileUp, Settings2, User as UserIcon, Sparkles, LogIn, LogOut, Compass, FolderKanban } from "lucide-react";
+import { BrandIcon } from "@/components/layout/brand-icon";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "@/components/auth/auth-dialog";
 import { Button } from "@/components/ui/button";
+import { PipelineScheduleDialog } from "./pipeline-schedule-dialog";
 
 const NAV_ITEMS = [
   { href: "/onboarding", label: "Get Started", icon: Compass },
@@ -26,14 +28,14 @@ export function Navbar() {
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
         <div className="flex items-center space-x-8">
           <Link href="/" className="flex items-center space-x-2.5 group">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-0.5 shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-all duration-300">
-              <div className="h-full w-full bg-zinc-950 rounded-[6px] flex items-center justify-center">
-                <Sparkles className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-transform duration-300" />
+            <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-violet-500 via-indigo-600 to-sky-500 p-0.5 shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-all duration-300">
+              <div className="h-full w-full bg-zinc-950 rounded-[6px] flex items-center justify-center p-1.5">
+                <BrandIcon className="w-full h-full group-hover:scale-110 transition-transform duration-300" />
               </div>
             </div>
             <div className="flex flex-col">
               <span className="font-bold text-sm tracking-tight text-zinc-100 flex items-center gap-1.5">
-                RemoteJobs
+                FindJobFit
                 <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">
                   PLATFORM
                 </span>
@@ -66,10 +68,7 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center space-x-2.5">
-          <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-800/40 text-[11px] font-mono text-emerald-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Pipeline &bull; Active</span>
-          </div>
+          <PipelineScheduleDialog />
 
           {isAuthenticated && user ? (
             <div className="flex items-center gap-2">

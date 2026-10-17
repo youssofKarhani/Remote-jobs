@@ -58,10 +58,10 @@ def test_cv_parse_text_endpoint(client: TestClient, sample_user: User, auth_head
     """Test parsing raw CV text via /api/v1/cv/parse-text."""
     cv_payload = {
         "text": """
-Youssof El Karhani
+Alex Morgan
 AI & Automation Lead - Munich, Germany
 Phone: +49 170 1234567
-LinkedIn: https://linkedin.com/in/youssofkarhani
+LinkedIn: https://linkedin.com/in/alexmorgan
 
 Professional Experience:
 RUYA Advisory - AI & Automation Lead

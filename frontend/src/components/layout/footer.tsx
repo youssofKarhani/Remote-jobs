@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Sparkles, ShieldCheck, Scale, FileText, Lock } from "lucide-react";
+import { ShieldCheck, Scale, FileText, Lock } from "lucide-react";
+import { BrandIcon } from "@/components/layout/brand-icon";
 
 export function Footer() {
   return (
@@ -9,14 +10,14 @@ export function Footer() {
           {/* Brand & Mission */}
           <div className="space-y-4 md:col-span-1">
             <Link href="/" className="flex items-center space-x-2.5 group">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 p-0.5 shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-all duration-300">
-                <div className="h-full w-full bg-zinc-950 rounded-[6px] flex items-center justify-center">
-                  <Sparkles className="h-4 w-4 text-violet-400 group-hover:scale-110 transition-transform duration-300" />
+              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-violet-500 via-indigo-600 to-sky-500 p-0.5 shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-all duration-300">
+                <div className="h-full w-full bg-zinc-950 rounded-[6px] flex items-center justify-center p-1.5">
+                  <BrandIcon className="w-full h-full group-hover:scale-110 transition-transform duration-300" />
                 </div>
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-sm tracking-tight text-zinc-100 flex items-center gap-1.5">
-                  RemoteJobs
+                  FindJobFit
                   <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20">
                     PLATFORM
                   </span>
@@ -65,32 +66,32 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Legal & Governance (Germany & EU) */}
+          {/* Legal & Governance */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider font-mono">Rechtliches &amp; Legal</h4>
+            <h4 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider font-mono">Legal &amp; Compliance</h4>
             <ul className="space-y-2 text-xs text-zinc-400">
               <li>
                 <Link href="/impressum" className="hover:text-zinc-200 transition-colors flex items-center gap-1.5">
                   <Scale className="h-3 w-3 text-violet-400" />
-                  <span>Impressum (§ 5 DDG)</span>
+                  <span>Legal Notice (Imprint / § 5 DDG)</span>
                 </Link>
               </li>
               <li>
                 <Link href="/privacy" className="hover:text-zinc-200 transition-colors flex items-center gap-1.5">
                   <Lock className="h-3 w-3 text-violet-400" />
-                  <span>Datenschutz (DSGVO / BDSG)</span>
+                  <span>Privacy Policy (GDPR / BDSG)</span>
                 </Link>
               </li>
               <li>
                 <Link href="/terms" className="hover:text-zinc-200 transition-colors flex items-center gap-1.5">
                   <FileText className="h-3 w-3 text-violet-400" />
-                  <span>Nutzungsbedingungen (AGB)</span>
+                  <span>Terms of Service (AGB)</span>
                 </Link>
               </li>
               <li>
                 <Link href="/ethics" className="hover:text-zinc-200 transition-colors flex items-center gap-1.5">
                   <ShieldCheck className="h-3 w-3 text-emerald-400" />
-                  <span>Ethik &amp; EU AI Act Konformität</span>
+                  <span>Ethics &amp; AI Compliance</span>
                 </Link>
               </li>
             </ul>
@@ -98,30 +99,30 @@ export function Footer() {
 
           {/* Ethics & Guarantee */}
           <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider font-mono">Garantie</h4>
+            <h4 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider font-mono">Guarantee</h4>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              <strong className="text-zinc-300">Null-Halluzinations-Garantie:</strong> Künstliche Intelligenz darf relevante Belege auswählen, jedoch niemals Belege erfinden. Alle Dokumente basieren auf verifizierten IDs (<code className="font-mono text-violet-400">EXP_xxx</code>).
+              <strong className="text-zinc-300">Zero-Hallucination Guarantee:</strong> Artificial intelligence selects relevant credentials but never invents them. All documents are strictly derived from verified experience IDs (<code className="font-mono text-violet-400">EXP_xxx</code>).
             </p>
             <div className="text-[11px] text-zinc-500 font-mono pt-1">
-              Standort: Bundesrepublik Deutschland / EU
+              Location: Hesse, Germany / EU
             </div>
           </div>
         </div>
 
         <div className="mt-12 pt-6 border-t border-zinc-800/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500 font-mono">
-          <p>&copy; {new Date().getFullYear()} RemoteJobs Public Platform. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} FindJobFit. All rights reserved.</p>
           <div className="flex items-center space-x-6 text-zinc-400">
             <Link href="/impressum" className="hover:text-zinc-200 transition-colors">
-              Impressum
+              Legal Notice (Imprint)
             </Link>
             <Link href="/privacy" className="hover:text-zinc-200 transition-colors">
-              Datenschutz
+              Privacy Policy
             </Link>
             <Link href="/terms" className="hover:text-zinc-200 transition-colors">
-              AGB
+              Terms of Service
             </Link>
             <Link href="/ethics" className="hover:text-zinc-200 transition-colors">
-              Ethik-Manifest
+              Ethics Manifest
             </Link>
           </div>
         </div>

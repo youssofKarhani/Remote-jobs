@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { ShieldCheck, CheckCircle2, HeartHandshake, Scale, Lock, Eye, Sparkles } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Ethik & Rechtliche Konformität (Ethics & Compliance) | RemoteJobs Platform",
-  description: "Warum RemoteJobs ethisch ist und deutschen sowie europäischen Gesetzen entspricht: EU AI Act, DSGVO, BDSG § 26 und AGG.",
+  title: "Ethik & Rechtliche Konformität (Ethics & Compliance) | FindJobFit",
+  description: "Warum FindJobFit ethisch ist und deutschen sowie europäischen Gesetzen entspricht: EU AI Act, DSGVO, BDSG § 26 und AGG.",
 };
 
 export default function EthicsPage() {
@@ -19,7 +19,7 @@ export default function EthicsPage() {
           Ethisches Manifest &amp; Deutsches Gesetzeskonzept
         </h1>
         <p className="text-base text-zinc-400 max-w-3xl leading-relaxed">
-          Warum der Einsatz der RemoteJobs-Plattform ethisch geboten ist, wie unsere Architektur Kandidaten vor Fälschungen schützt und warum das System in vollem Einklang mit deutschen und europäischen Gesetzen steht.
+          Warum der Einsatz der FindJobFit-Plattform ethisch geboten ist, wie unsere Architektur Kandidaten vor Fälschungen schützt und warum das System in vollem Einklang mit deutschen und europäischen Gesetzen steht.
         </p>
       </div>
 
@@ -33,7 +33,7 @@ export default function EthicsPage() {
           &bdquo;Künstliche Intelligenz darf entscheiden, welche verifizierten Belege für eine Stelle relevant sind. Sie darf jedoch niemals entscheiden, welche Belege existieren.&ldquo;
         </blockquote>
         <p className="text-xs text-zinc-400 font-sans">
-          Herkömmliche generative KI neigt dazu, Lebensläufe zu &bdquo;halluzinieren&ldquo; &mdash; Erfindungen, die sowohl Arbeitgeber täuschen als auch Bewerber rechtlich angreifbar machen. RemoteJobs verhindert dies auf Code-Ebene durch mathematische Invarianten.
+          Herkömmliche generative KI neigt dazu, Lebensläufe zu &bdquo;halluzinieren&ldquo; &mdash; Erfindungen, die sowohl Arbeitgeber täuschen als auch Bewerber rechtlich angreifbar machen. FindJobFit verhindert dies auf Code-Ebene durch mathematische Invarianten.
         </p>
       </div>
 
@@ -42,7 +42,7 @@ export default function EthicsPage() {
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-zinc-100 flex items-center gap-2.5">
             <HeartHandshake className="h-6 w-6 text-violet-400" />
-            1. Warum ist RemoteJobs ethisch?
+            1. Warum ist FindJobFit ethisch?
           </h2>
           <p className="text-sm text-zinc-400">
             Drei fundamentale ethische Säulen definieren unsere Architektur:
@@ -70,7 +70,7 @@ export default function EthicsPage() {
             <Scale className="h-5 w-5 text-purple-400" />
             <h3 className="font-semibold text-zinc-100 text-sm">Chancengleichheit</h3>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Unternehmen nutzen seit Jahren intransparente ATS-Filter. RemoteJobs gibt Kandidaten die technologische Augenhöhe zurück &mdash; ohne unlautere Tricks, sondern durch präzise Strukturierung.
+              Unternehmen nutzen seit Jahren intransparente ATS-Filter. FindJobFit gibt Kandidaten die technologische Augenhöhe zurück &mdash; ohne unlautere Tricks, sondern durch präzise Strukturierung.
             </p>
           </div>
         </div>
@@ -105,7 +105,7 @@ export default function EthicsPage() {
             </p>
             <ul className="list-disc pl-5 space-y-1.5 text-xs text-zinc-400">
               <li>
-                <strong className="text-zinc-200">Kandidatenseitige Assistenz:</strong> RemoteJobs ist ein Hilfsmittel für den Bewerber, kein Arbeitgeber-Filter.
+                <strong className="text-zinc-200">Kandidatenseitige Assistenz:</strong> FindJobFit ist ein Hilfsmittel für den Bewerber, kein Arbeitgeber-Filter.
               </li>
               <li>
                 <strong className="text-zinc-200">Menschliche Aufsicht (Art. 14 AI Act):</strong> Kein Schritt wird vollautomatisch ohne menschliche Kontrolle ausgeführt. Der Bewerber hat das letzte Wort vor jedem Versand.
@@ -179,7 +179,7 @@ export default function EthicsPage() {
               Im deutschen Arbeitsrecht kann eine Fälschung im Lebenslauf eine <strong>arglistige Täuschung (§ 123 BGB)</strong> darstellen oder eine fristlose Kündigung aus wichtigem Grund (§ 626 BGB) rechtfertigen.
             </p>
             <p className="text-zinc-400 text-xs leading-relaxed">
-              <strong className="text-zinc-200">Der rechtliche Schutzschild von RemoteJobs:</strong> Da unser System mathematisch ausschließt, dass unbestätigte oder erfundene Stationen in den exportierten Lebenslauf gelangen, bewahrt RemoteJobs den Bewerber aktiv davor, sich unabsichtlich strafbar oder arbeitsrechtlich angreifbar zu machen.
+              <strong className="text-zinc-200">Der rechtliche Schutzschild von FindJobFit:</strong> Da unser System mathematisch ausschließt, dass unbestätigte oder erfundene Stationen in den exportierten Lebenslauf gelangen, bewahrt FindJobFit den Bewerber aktiv davor, sich unabsichtlich strafbar oder arbeitsrechtlich angreifbar zu machen.
             </p>
           </div>
 
