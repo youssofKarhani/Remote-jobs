@@ -200,6 +200,19 @@ export function JobDetailDialog({
                     >
                       {matchData.recommendation || "Consider"}
                     </Badge>
+                    {assessment?.evaluation_mode === "heuristic" ? (
+                      <Badge variant="outline" className="text-[10px] font-mono border-amber-800/60 bg-amber-950/40 text-amber-300">
+                        Heuristic
+                      </Badge>
+                    ) : assessment?.evaluation_mode === "prescreen_filtered" ? (
+                      <Badge variant="outline" className="text-[10px] font-mono border-zinc-800 bg-zinc-900/60 text-zinc-400">
+                        Pre-Screened
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] font-mono border-violet-800/60 bg-violet-950/40 text-violet-300">
+                        AI Mode
+                      </Badge>
+                    )}
                   </div>
                 ) : (
                   <Badge variant="outline" className="text-xs font-mono text-zinc-400">

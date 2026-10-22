@@ -16,7 +16,6 @@ from app.routers import (
 )
 
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Ensure database schema is initialized on startup
@@ -57,7 +56,6 @@ app.include_router(cover_letters_router, prefix="/api/v1")
 app.include_router(applications_router, prefix="/api/v1")
 
 
-
 @app.get("/api/health", tags=["Health"])
 async def health_check():
     """Health check probe endpoint."""
@@ -67,7 +65,6 @@ async def health_check():
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
         "llm_provider": settings.LLM_PROVIDER,
-        "llm_base_url": settings.LLM_BASE_URL,
     }
 
 
@@ -78,6 +75,20 @@ async def get_ai_status():
     return await ai_service.check_health()
 
 
+@app.post("/api/v1/ai/wake", tags=["AI Gateway"])
+async def wake_ai_infrastructure():
+    """Trigger the Serverless Wake endpoint to start scale-to-zero AWS infrastructure and refresh IP."""
+    from app.integrations.llm_ai_service import ai_service
+    wake_triggered = await ai_service.trigger_wake()
+    health = await ai_service.check_health()
+    return {
+        "wake_triggered": wake_triggered,
+        "wake_url_configured": bool(ai_service.wake_url),
+        "orchestrator_url": ai_service.orchestrator_url,
+        "ai_status": health,
+    }
+
+
 @app.get("/", tags=["Root"])
 async def root():
     """Root landing endpoint."""
@@ -86,4 +97,3 @@ async def root():
         "docs": "/docs",
         "health": "/api/health",
     }
-

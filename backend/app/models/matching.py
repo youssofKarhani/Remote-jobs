@@ -53,6 +53,7 @@ class JobAssessment(Base, TimestampMixin):
     location_score = Column(Integer, nullable=False)
     language_score = Column(Integer, nullable=False)
     confidence = Column(Float, nullable=False)
+    evaluation_mode = Column(String(50), nullable=False, default="ai", server_default="ai")
     strengths = Column(JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False)
     missing_requirements = Column(JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False)
     matching_evidence_ids = Column(JSON().with_variant(postgresql.JSONB(), "postgresql"), nullable=False)

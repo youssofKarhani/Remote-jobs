@@ -215,13 +215,13 @@ def test_cv_tailoring_pipeline_and_download(client: TestClient, sample_user: Use
     )
 
     # 1. Trigger Tailoring
-
     res_tailor = client.post(f"/api/v1/jobs/{job.id}/tailor-cv", json={"max_bullets_per_role": 3}, headers=auth_headers)
     assert res_tailor.status_code == 200
     doc_data = res_tailor.json()
     doc_id = doc_data["id"]
     assert doc_data["document_type"] == "cv"
     assert doc_data["format"] == "docx"
+    assert doc_data["verification_status"] == "unverified"  # Unverified draft items tagged properly
     assert "download_url" in doc_data
 
     # 2. Download File with Authorization header
@@ -237,9 +237,22 @@ def test_cv_tailoring_pipeline_and_download(client: TestClient, sample_user: Use
     assert res_query_dl.headers["content-type"] == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     assert len(res_query_dl.content) > 1000
 
+    # 4. Storage resilience check: simulate ephemeral container restart wiping local file
+    from app.models.document import GeneratedDocument
+    import os
+    gen_doc_db = db_session.query(GeneratedDocument).filter(GeneratedDocument.id == uuid.UUID(doc_id)).first()
+    assert gen_doc_db is not None
+    assert gen_doc_db.file_bytes is not None
+    if os.path.exists(gen_doc_db.file_path):
+        os.remove(gen_doc_db.file_path)
+
+    res_stream_dl = client.get(f"/api/v1/documents/{doc_id}/download", headers=auth_headers)
+    assert res_stream_dl.status_code == 200
+    assert len(res_stream_dl.content) > 1000  # streamed seamlessly from DB backup bytes
+
 
 def test_unverified_bullets_never_leak_in_cv_tailoring(client: TestClient, sample_user: User, auth_headers: dict, db_session: Session):
-    """Adversarial check: unverified bullets must never appear in generated .docx and provenance must be 100% verified."""
+    """Adversarial check: with require_verified=True, unverified bullets must never appear in generated .docx and provenance must be 100% verified."""
     job = Job(
         title="Distributed Storage Engineer",
         sanitized_title="Distributed Storage Engineer",
@@ -283,12 +296,17 @@ def test_unverified_bullets_never_leak_in_cv_tailoring(client: TestClient, sampl
     db_session.add_all([b_unverified, b_verified])
     db_session.commit()
 
-    # Trigger tailoring
-    res_tailor = client.post(f"/api/v1/jobs/{job.id}/tailor-cv", json={"max_bullets_per_role": 2}, headers=auth_headers)
+    # 1. Partner-strict mode: require_verified=True
+    res_tailor = client.post(
+        f"/api/v1/jobs/{job.id}/tailor-cv",
+        json={"max_bullets_per_role": 2, "require_verified": True},
+        headers=auth_headers,
+    )
     assert res_tailor.status_code == 200
     doc_data = res_tailor.json()
+    assert doc_data["verification_status"] == "verified"
 
-    # Verify ID provenance strictly excludes unverified bullet
+    # Verify ID provenance strictly excludes unverified bullet in partner-strict mode
     assert "EXP_UNVERIFIED_999" not in doc_data["selected_evidence_ids"]
     assert "EXP_VERIFIED_777" in doc_data["selected_evidence_ids"]
 
@@ -302,6 +320,18 @@ def test_unverified_bullets_never_leak_in_cv_tailoring(client: TestClient, sampl
     full_text = "\n".join([p.text for p in doc.paragraphs])
     assert "SECRET_UNVERIFIED_HALLUCINATION_TEXT" not in full_text
     assert "CONFIRMED_VERIFIED_ACHIEVEMENT_TEXT" in full_text
+
+    # 2. General self-serve mode (default require_verified=False) generates without failing and marks as partially verified
+    res_unverified = client.post(
+        f"/api/v1/jobs/{job.id}/tailor-cv",
+        json={"max_bullets_per_role": 2, "require_verified": False},
+        headers=auth_headers,
+    )
+    assert res_unverified.status_code == 200
+    assert res_unverified.json()["verification_status"] in ("verified", "partially_verified", "unverified")
+    # Verify the unverified bullet in DB was NOT mutated to is_verified=True!
+    persisted_unverified = db_session.query(EvidenceItem).filter(EvidenceItem.stable_id == "EXP_UNVERIFIED_999").first()
+    assert persisted_unverified.is_verified is False
 
 
 def test_jobs_sql_job_types_filter(client: TestClient, sample_user: User, auth_headers: dict, db_session: Session):

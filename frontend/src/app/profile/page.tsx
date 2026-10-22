@@ -252,7 +252,7 @@ export default function ProfilePage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       <PageHeader
         title="Candidate Evidence Bank"
-        subtitle="Manage your canonical profile and immutable evidence items (stable IDs) used for deterministic CV rendering."
+        subtitle="Manage your canonical profile and immutable evidence items (stable IDs). Items can be used immediately for standard exports or verified for the Partner-Verified trust tier."
       >
         <div className="flex items-center gap-3">
           {totalItems > 0 && (
@@ -484,7 +484,7 @@ export default function ProfilePage() {
                         <div
                           key={bullet.id || bullet.stable_id}
                           className={`p-3 rounded-lg border flex items-start justify-between gap-3 text-sm transition-colors ${
-                            bullet.is_verified ? "bg-zinc-900/60 border-zinc-800" : "bg-amber-950/20 border-amber-800/40"
+                            bullet.is_verified ? "bg-zinc-900/60 border-zinc-800" : "bg-zinc-900/30 border-zinc-800/60"
                           }`}
                         >
                           <div className="space-y-1 flex-1">
@@ -494,11 +494,11 @@ export default function ProfilePage() {
                               </span>
                               {bullet.is_verified ? (
                                 <Badge variant="success" className="text-[10px] py-0 px-1.5 bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
-                                  Verified
+                                  Partner-Verified
                                 </Badge>
                               ) : (
-                                <Badge variant="secondary" className="text-[10px] py-0 px-1.5 text-amber-400 bg-amber-950/60 border border-amber-800/40">
-                                  Draft / Unverified
+                                <Badge variant="secondary" className="text-[10px] py-0 px-1.5 text-zinc-400 bg-zinc-900 border border-zinc-800">
+                                  Standard
                                 </Badge>
                               )}
                             </div>

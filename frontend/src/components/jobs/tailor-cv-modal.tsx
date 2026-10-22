@@ -49,7 +49,7 @@ export function TailorCVModal({
       if (onSuccess) onSuccess(doc);
     } catch (err: any) {
       console.error("CV Tailoring error:", err);
-      setError(err?.message || "Failed to generate tailored CV. Please ensure you have verified evidence in your profile.");
+      setError(err?.message || "Failed to generate tailored CV. Please ensure you have uploaded a CV or added experience in your profile.");
     } finally {
       setIsGenerating(false);
     }
@@ -188,6 +188,19 @@ export function TailorCVModal({
                 <Badge variant="outline" className="text-xs font-mono text-zinc-300">
                   Format: {generatedDoc.format?.toUpperCase() || "DOCX"}
                 </Badge>
+                {generatedDoc.verification_status === "verified" ? (
+                  <Badge variant="outline" className="text-xs font-mono text-emerald-400 border-emerald-800 bg-emerald-950/40">
+                    Partner-Verified ✓
+                  </Badge>
+                ) : generatedDoc.verification_status === "partially_verified" ? (
+                  <Badge variant="outline" className="text-xs font-mono text-amber-400 border-amber-800 bg-amber-950/40">
+                    Partially Verified
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs font-mono text-zinc-400 border-zinc-800 bg-zinc-900/40">
+                    Standard Export
+                  </Badge>
+                )}
                 {generatedDoc.selected_evidence_ids && (
                   <Badge variant="secondary" className="text-xs font-mono text-emerald-400 bg-emerald-950/50">
                     {generatedDoc.selected_evidence_ids.length} Evidence Bullets Grounded

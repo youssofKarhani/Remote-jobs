@@ -108,16 +108,19 @@ def resolve_verified_evidence_text(
     db: Session,
     user_id: uuid.UUID,
     selected_ids: List[str],
+    verified_only: bool = True,
 ) -> List[Dict[str, Any]]:
-    """Fetch verified database text records for given stable IDs scoped strictly by user_id.
+    """Fetch database text records for given stable IDs scoped strictly by user_id.
     
     Prevents hallucination by retrieving exact stored text.
-    Raises EvidenceValidationError if any selected ID cannot be found or is unverified.
+    If verified_only=True, restricts lookup to verified items.
+    If verified_only=False, allows unverified candidate draft items while still strictly
+    enforcing user-ownership and rejecting cross-tenant or fabricated IDs.
     """
     if not selected_ids:
         return []
 
-    allowed_ids = get_user_allowed_evidence_ids(db, user_id=user_id, verified_only=True)
+    allowed_ids = get_user_allowed_evidence_ids(db, user_id=user_id, verified_only=verified_only)
     validate_selected_evidence_ids(selected_ids, allowed_ids)
 
     resolved: List[Dict[str, Any]] = []
@@ -139,6 +142,7 @@ def resolve_verified_evidence_text(
                     "text": item.raw_text,
                     "category": item.category,
                     "variants": item.variants,
+                    "is_verified": bool(item.is_verified),
                 })
         elif prefix == "SKILL":
             item = (
@@ -152,6 +156,7 @@ def resolve_verified_evidence_text(
                     "type": "skill",
                     "name": item.name,
                     "category": item.category,
+                    "is_verified": bool(item.is_verified),
                 })
         elif prefix == "PROJ":
             item = (
@@ -166,6 +171,7 @@ def resolve_verified_evidence_text(
                     "title": item.title,
                     "description": item.description,
                     "technologies": item.technologies,
+                    "is_verified": bool(item.is_verified),
                 })
         elif prefix == "CERT":
             item = (
@@ -179,6 +185,7 @@ def resolve_verified_evidence_text(
                     "type": "certification",
                     "name": item.name,
                     "issuing_organization": item.issuing_organization,
+                    "is_verified": bool(item.is_verified),
                 })
         elif prefix == "EDU":
             item = (
@@ -193,6 +200,36 @@ def resolve_verified_evidence_text(
                     "institution": item.institution,
                     "degree": item.degree,
                     "field_of_study": item.field_of_study,
+                    "is_verified": bool(item.is_verified),
                 })
 
     return resolved
+
+
+def compute_evidence_verification_status(
+    db: Session,
+    user_id: uuid.UUID,
+    selected_ids: List[str],
+) -> str:
+    """Classify the verification trust tier of a selection of evidence IDs.
+    
+    Returns:
+    - "verified": 100% of selected items have is_verified == True (trusted partner ready).
+    - "partially_verified": Mix of verified and unverified items.
+    - "unverified": 0% verified items (general platform / self-serve export).
+    """
+    if not selected_ids:
+        return "unverified"
+
+    resolved = resolve_verified_evidence_text(db, user_id=user_id, selected_ids=selected_ids, verified_only=False)
+    if not resolved:
+        return "unverified"
+
+    verified_count = sum(1 for item in resolved if item.get("is_verified", False))
+    total_count = len(resolved)
+
+    if verified_count == total_count:
+        return "verified"
+    elif verified_count > 0:
+        return "partially_verified"
+    return "unverified"

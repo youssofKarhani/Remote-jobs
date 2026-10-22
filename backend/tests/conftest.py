@@ -1,4 +1,5 @@
 import os
+import socket
 import sys
 import uuid
 from pathlib import Path
@@ -6,6 +7,35 @@ from typing import Generator
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
+
+# Defensive guard against infinite hangs on Windows when loopback TCP is blocked in a sandbox:
+# CPython's C-level _socket.socketpair() calls accept() on 127.0.0.1 with an infinite timeout.
+# Probing loopback with a 0.5s timeout before asyncio starts ensures fast failure instead of hanging.
+def _verify_windows_loopback_or_exit() -> None:
+    lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    lsock.settimeout(0.5)
+    try:
+        lsock.bind(("127.0.0.1", 0))
+        lsock.listen(1)
+        csock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        csock.settimeout(0.5)
+        try:
+            csock.connect(lsock.getsockname())
+            ssock, _ = lsock.accept()
+            ssock.close()
+        except Exception as exc:
+            pytest.exit(
+                f"Windows loopback TCP (127.0.0.1) is blocked in this environment ({exc}). "
+                "Run pytest with BypassSandbox=True so asyncio socketpair() can connect.",
+                returncode=2,
+            )
+        finally:
+            csock.close()
+    finally:
+        lsock.close()
+
+
+_verify_windows_loopback_or_exit()
 
 # Add backend dir to sys.path
 backend_dir = Path(__file__).resolve().parent.parent

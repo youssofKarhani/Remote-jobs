@@ -83,3 +83,7 @@ Thumbs.db
 
 # Storage & generated uploads
 backend/storage/
+
+# Debug query logs
+query*.txt
+query*.json

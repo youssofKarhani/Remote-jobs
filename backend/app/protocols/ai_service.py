@@ -132,6 +132,7 @@ class JobAssessmentResult(BaseModel):
     recommendation: str = Field(description="'apply', 'consider', or 'skip'.")
     confidence: float = Field(ge=0.0, le=1.0)
     sanitized_job_title: str
+    evaluation_mode: str = Field(default="ai", description="'ai', 'heuristic', or 'prescreen_filtered'")
 
 
 class CVSelectionResult(BaseModel):

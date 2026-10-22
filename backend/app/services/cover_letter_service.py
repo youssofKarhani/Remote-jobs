@@ -115,40 +115,21 @@ class CoverLetterService:
         if not selected_strategy:
             selected_strategy = POSITIONING_STRATEGIES[0]  # Default to Technical Depth
 
-        # 1. Fetch Candidate Profile and Verified Evidence
+        # 1. Fetch Candidate Profile and Candidate Evidence
         profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
-        verified_bullets = (
+        bullets = (
             db.query(EvidenceItem)
-            .filter(EvidenceItem.user_id == user.id, EvidenceItem.is_verified.is_(True))
-            .order_by(EvidenceItem.display_order)
+            .filter(EvidenceItem.user_id == user.id)
+            .order_by(EvidenceItem.is_verified.desc(), EvidenceItem.display_order.asc())
             .all()
         )
 
-        # Fallback: only if candidate hasn't verified any items yet
-        if not verified_bullets:
-            total_verified = (
-                db.query(EvidenceItem)
-                .filter(EvidenceItem.user_id == user.id, EvidenceItem.is_verified.is_(True))
-                .count()
-            )
-            if total_verified == 0:
-                has_any = db.query(EvidenceItem).filter(EvidenceItem.user_id == user.id).first()
-                if has_any:
-                    db.query(EvidenceItem).filter(EvidenceItem.user_id == user.id).update({"is_verified": True})
-                    db.commit()
-                    verified_bullets = (
-                        db.query(EvidenceItem)
-                        .filter(EvidenceItem.user_id == user.id, EvidenceItem.is_verified.is_(True))
-                        .order_by(EvidenceItem.display_order)
-                        .all()
-                    )
-
-        skills = db.query(Skill).filter(Skill.user_id == user.id).all()
+        skills = db.query(Skill).filter(Skill.user_id == user.id).order_by(Skill.is_verified.desc()).all()
         top_skills = [s.name for s in skills[:6]]
 
         bullet_records = [
             {"stable_id": b.stable_id, "text": b.raw_text}
-            for b in verified_bullets[:4]
+            for b in bullets[:4]
         ]
         referenced_ids = [b["stable_id"] for b in bullet_records]
 

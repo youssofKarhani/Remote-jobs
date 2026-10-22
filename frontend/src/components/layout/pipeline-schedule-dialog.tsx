@@ -162,11 +162,11 @@ export function PipelineScheduleDialog() {
         } else if (unverifiedTotal > 0) {
           items.push({
             id: "unverified-evidence",
-            title: `${unverifiedTotal} unverified evidence item${unverifiedTotal > 1 ? "s" : ""}`,
-            description: "The AI strictly omits unverified items from tailored CVs to avoid hallucination.",
+            title: `${unverifiedTotal} unverified item${unverifiedTotal > 1 ? "s" : ""} (Standard Export)`,
+            description: "Ready for standard exports. Verify items to qualify for the Partner-Verified trust tier.",
             href: "/profile",
-            actionText: "Verify Evidence",
-            severity: "warning",
+            actionText: "Review Evidence",
+            severity: "info",
             icon: "shield",
           });
         }
@@ -437,6 +437,8 @@ export function PipelineScheduleDialog() {
                           <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
                             {item.severity === "warning" ? (
                               <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                            ) : item.icon === "shield" ? (
+                              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                             ) : (
                               <Sliders className="h-3.5 w-3.5 text-indigo-400 shrink-0" />
                             )}

@@ -18,6 +18,7 @@ class JobAssessmentRead(BaseModel):
     location_score: int
     language_score: int
     confidence: float
+    evaluation_mode: str = "ai"
     strengths: List[str] = Field(default_factory=list)
     missing_requirements: List[str] = Field(default_factory=list)
     matching_evidence_ids: List[str] = Field(default_factory=list)

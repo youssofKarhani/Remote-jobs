@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178C6?style=flat&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4+-06B6D4?style=flat&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Package Manager - UV](https://img.shields.io/badge/uv-Fast%20Python%20Packaging-DE5FE9?style=flat&logo=astral)](https://github.com/astral-sh/uv)
-[![Tests](https://img.shields.io/badge/Tests-Passing%20(188%2B%20tests)-2EA44F?style=flat&logo=pytest&logoColor=white)](https://pytest.org)
+[![Tests](https://img.shields.io/badge/Tests-Passing%20(225%20tests)-2EA44F?style=flat&logo=pytest&logoColor=white)](https://pytest.org)
 
 An enterprise-grade, multi-user AI job discovery and application platform built on a **deterministic anti-hallucination architecture**. The platform ingests and deduplicates jobs across multiple sources, extracts verified candidate evidence from resumes, applies zero-cost deterministic filters, and gates all LLM operations through mathematically strict validation.
 
@@ -50,7 +50,7 @@ In conventional AI job tools, generative models freely hallucinate bullet points
 - **Atomic Evidence Ingestion**: Deconstructs candidate resumes (PDF, DOCX, Plain Text) into structured entities: Experience Records, Evidence Bullets, Categorized Skills (`programming`, `backend`, `ai_ml`, `devops`, `tools`, `soft_skill`), Certifications, Projects, and Education.
 - **Stable ID System**: Assigns deterministic, format-validated identifiers (`^[A-Z]{3,5}_\d{3,5}$`) such as `EXP_001`, `SKILL_001`, `PROJ_001`, `CERT_001`, and `EDU_001`.
 - **Pre-Approved Variants**: Supports verified alternate phrasing for achievements (e.g. `EXP_001_FULL`, `EXP_001_SHORT`, `EXP_001_DATA`) so the model can optimize layout without altering facts.
-- **Draft & Verification Lifecycle**: Extracted items start as unverified drafts (`is_verified = False`) and are gated until confirmed by the user.
+- **Draft & Multi-Tier Verification Trust**: Extracted items are immediately usable for tailoring standard CV exports without requiring manual review up front. Users can selectively or bulk verify items to unlock the **Partner-Verified** trust tier (`verified`, `partially_verified`, `unverified`) for high-trust employer networks.
 
 ### 2. Multi-Source Job Discovery & Normalization
 - **Job Source Abstraction**: Protocol-driven ingestion architecture (`JobSource`) decoupled from any single provider.
@@ -73,9 +73,9 @@ In conventional AI job tools, generative models freely hallucinate bullet points
   - **Exclusion Rules**: Short-circuits matches on excluded companies or prohibited keywords.
   - **Compensation Thresholds**: Filters on minimum acceptable salary.
 
-### 5. Strict Evidence Validation Gate
-- Enforces `selected_ids ⊆ allowed_ids` mathematically on all AI outputs.
-- Blocks cross-tenant evidence leakage, non-existent references (`EXP_999`), and unverified draft bullets.
+### 5. Strict Evidence Validation Gate & Storage Resilience
+- Enforces `selected_ids ⊆ allowed_ids` mathematically on all AI tailoring outputs, blocking cross-tenant leakage or fabricated IDs.
+- **Resilient Binary Document Storage**: Persists generated `.docx` documents as binary blobs (`file_bytes`) directly in PostgreSQL alongside filesystem storage. This guarantees file downloads never break even when deployed to ephemeral container hosts like Railway.
 
 ---
 
@@ -352,19 +352,27 @@ The backend AI Gateway defaults to a local [Ollama](https://ollama.ai/) instance
 | **Auth** | `GET` | `/api/v1/auth/me` | Fetch authenticated user profile details |
 | **CV** | `POST` | `/api/v1/cv/upload` | Upload PDF/DOCX or plain text for structured ingestion |
 | **CV** | `POST` | `/api/v1/cv/parse-text` | Ingest raw CV text directly into Evidence Bank draft |
+| **CV** | `POST` | `/api/v1/cv/extract-async` | Trigger background structured CV extraction task |
+| **CV** | `GET` | `/api/v1/cv/extraction-status/{task_id}` | Check async CV extraction progress and state |
 | **Profile** | `GET` | `/api/v1/profile` | Retrieve candidate profile and full Evidence Bank |
 | **Profile** | `PUT` | `/api/v1/profile` | Update profile headline, summary, and contact info |
 | **Profile** | `POST` | `/api/v1/profile/evidence` | Add a new evidence item with assigned stable ID |
 | **Profile** | `PUT` | `/api/v1/profile/evidence/{id}` | Update evidence content or pre-approved variants |
-| **Profile** | `POST` | `/api/v1/profile/evidence/{id}/verify` | Verify draft evidence item for CV inclusion |
+| **Profile** | `POST` | `/api/v1/profile/evidence/{id}/verify` | Toggle verification status of an evidence item |
+| **Profile** | `POST` | `/api/v1/profile/verify-all` | Verify all profile evidence items for partner-tier qualification |
 | **Profile** | `POST` | `/api/v1/profile/skills` | Add a new categorized skill record |
 | **Profile** | `POST` | `/api/v1/profile/validate-evidence` | Test evidence ID selection gate against allowed IDs |
 | **Preferences** | `GET` | `/api/v1/preferences` | Get deterministic candidate filtering rules |
 | **Preferences** | `PUT` | `/api/v1/preferences` | Update filtering rules (locations, remote, exclusions) |
 | **Jobs** | `GET` | `/api/v1/jobs` | Get paginated list of canonical deduplicated jobs |
-| **Jobs** | `GET` | `/api/v1/jobs/feed` | Get jobs filtered by current user's preferences |
+| **Jobs** | `GET` | `/api/v1/jobs?apply_preferences=true` | Get jobs filtered by current user's preferences |
 | **Jobs** | `POST` | `/api/v1/jobs/sync` | Trigger on-demand sync from external job sources |
-| **Health** | `GET` | `/api/health` | Service health status check probe |
+| **Matching** | `POST` | `/api/v1/matching/assess/{job_id}` | Run pre-screen funnel and multi-dimensional compatibility assessment |
+| **Matching** | `GET` | `/api/v1/matching/match/{job_id}` | Retrieve cached job assessment and evaluation mode (`ai`, `heuristic`, `prescreen_filtered`) |
+| **Tailoring** | `POST` | `/api/v1/tailor/cv` | Tailor CV to job; tags `verification_status` and backs up bytes |
+| **Tailoring** | `POST` | `/api/v1/tailor/cover-letter` | Generate evidence-grounded cover letter |
+| **Tailoring** | `GET` | `/api/v1/tailor/documents/{id}/download` | Stream generated `.docx` document with PostgreSQL byte fallback |
+| **Health** | `GET` | `/api/health` | Sanitized service health status check probe |
 
 ---
 
@@ -479,15 +487,16 @@ npm run lint
   - Multi-level deduplication (External ID, URL query stripping, SHA-256 content hashing).
   - Deterministic candidate preference filtering engine.
   - Real-time filtered jobs feed in Next.js UI.
-- [ ] **Phase 3: AI Matching & Assessment**
-  - High-recall AI Pre-Screening pipeline.
+- [x] **Phase 3: AI Matching & Assessment**
+  - High-recall heuristic & AI Pre-Screening pipeline (short-circuits non-matches, avoiding wasteful LLM costs).
   - Deep multi-dimensional compatibility assessment (Skills, Experience, Seniority, Location, Language).
-  - Match explanation and reasoning interface.
-- [ ] **Phase 4: Document Generation & Tailoring**
-  - Evidence-grounded CV selection by ID.
-  - Grounded cover letter generation with positioning strategies.
-  - Static template rendering (`docxtpl` / PDF output) with zero generative distortion.
-- [ ] **Phase 5: Automated Asynchronous Pipelines**
+  - Match explanation, evaluation mode tracking (`ai`, `heuristic`, `prescreen_filtered`), and dialog breakdown in Next.js UI.
+- [x] **Phase 4: Document Generation & Tailoring**
+  - Zero-hallucination evidence selection by ID (`selected_ids ⊆ allowed_ids`).
+  - Multi-tier verification trust tagging (`verified`, `partially_verified`, `unverified`) enabling immediate tailored CV generation without mandatory upfront verification.
+  - Evidence-grounded cover letter generation with candidate positioning strategies.
+  - Template rendering (`python-docx` / `.docx`) with dual persistence (disk + PostgreSQL `file_bytes`) for container resilience.
+- [ ] **Phase 5: Automated Asynchronous Pipelines & Enterprise Scale**
   - Redis + Background worker task queues.
   - Scheduled multi-source job fetching & candidate notification service.
 

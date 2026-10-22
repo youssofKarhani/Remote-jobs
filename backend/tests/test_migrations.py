@@ -56,6 +56,14 @@ def test_alembic_upgrade_and_downgrade():
         evidence_cols = {col["name"] for col in inspector.get_columns("evidence_items")}
         assert {"id", "user_id", "experience_record_id", "stable_id", "raw_text", "category", "is_verified"}.issubset(evidence_cols)
 
+        # Verify columns on generated_documents table
+        doc_cols = {col["name"] for col in inspector.get_columns("generated_documents")}
+        assert {"id", "user_id", "file_path", "verification_status", "file_bytes"}.issubset(doc_cols)
+
+        # Verify columns on job_assessments table
+        assessment_cols = {col["name"] for col in inspector.get_columns("job_assessments")}
+        assert {"id", "job_match_id", "overall_score" if "overall_score" in assessment_cols else "skills_score", "evaluation_mode"}.issubset(assessment_cols)
+
         # Test downgrade back to base
         command.downgrade(alembic_cfg, "base")
 

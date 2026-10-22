@@ -624,3 +624,442 @@ Technical University of Munich - M.Sc. Computer Science
     app_data = resp_app.json()
     assert app_data["status"] == "Applied"
     assert app_data["job_id"] == str(job.id)
+
+
+# ============================================================================
+# 9. Cross-Project Live Integration with "My sleepless slaves" AI Platform
+# ============================================================================
+
+import sys
+from pathlib import Path
+import httpx
+from httpx import ASGITransport
+
+SLEEPLESS_SLAVES_DIR = Path(__file__).resolve().parents[4] / "My sleepless slaves"
+if SLEEPLESS_SLAVES_DIR.exists() and str(SLEEPLESS_SLAVES_DIR) not in sys.path:
+    sys.path.append(str(SLEEPLESS_SLAVES_DIR))
+
+
+@pytest.fixture
+def sleepless_slaves_stack(tmp_path):
+    """Spins up the real 'My sleepless slaves' Orchestrator, AIWorker, and Mock Inference Gateway in-process."""
+    if not SLEEPLESS_SLAVES_DIR.exists():
+        pytest.skip("My sleepless slaves workspace not found")
+
+    from services.common.config import Settings as PlatformSettings
+    from services.common.queue import MemoryJobQueue
+    from services.common.storage import LocalStorage
+    from services.common.job_store import MemoryJobStore
+    from services.orchestrator.app import (
+        create_app as create_orchestrator_app,
+        get_app_queue,
+        get_app_storage,
+        get_app_job_store,
+    )
+    from services.mock_inference.app import create_mock_app
+    from services.ai_worker.worker import AIWorker
+
+    p_settings = PlatformSettings(
+        ENVIRONMENT="test",
+        QUEUE_TYPE="memory",
+        STORAGE_TYPE="local",
+        LOCAL_STORAGE_DIR=str(tmp_path / "platform_storage"),
+        INFERENCE_GATEWAY_URL="http://sleepless-gateway:8001",
+        MOCK_COLD_START_DELAY_SECONDS=0.01,
+        MOCK_INFERENCE_DELAY_SECONDS=0.01,
+    )
+
+    queue = MemoryJobQueue()
+    storage = LocalStorage(base_dir=str(tmp_path / "platform_storage"))
+    job_store = MemoryJobStore(persistence_file=str(tmp_path / "jobs.json"))
+
+    orch_app = create_orchestrator_app(p_settings)
+    orch_app.dependency_overrides[get_app_queue] = lambda: queue
+    orch_app.dependency_overrides[get_app_storage] = lambda: storage
+    orch_app.dependency_overrides[get_app_job_store] = lambda: job_store
+
+    gateway_app = create_mock_app()
+    gateway_transport = ASGITransport(app=gateway_app)
+    orch_transport = ASGITransport(app=orch_app)
+
+    worker = AIWorker(
+        settings=p_settings,
+        queue=queue,
+        storage=storage,
+        job_store=job_store,
+    )
+
+    async def routed_gateway_call(model: str, prompt: str):
+        async with httpx.AsyncClient(transport=gateway_transport, base_url="http://sleepless-gateway:8001") as g_client:
+            resp = await g_client.post(
+                "/v1/chat/completions",
+                json={"model": model, "messages": [{"role": "user", "content": prompt}]},
+            )
+            data = resp.json()
+            return {
+                "content": data["choices"][0]["message"]["content"],
+                "duration_seconds": 0.01,
+                "metadata": data.get("mock_metadata", {}),
+            }
+
+    worker.call_inference_gateway = routed_gateway_call
+
+    async def process_next_queued_job(_job_id: str) -> None:
+        msgs = queue.dequeue(max_messages=1)
+        for m in msgs:
+            await worker.process_message(m)
+
+    return {
+        "gateway_app": gateway_app,
+        "gateway_transport": gateway_transport,
+        "orch_app": orch_app,
+        "orch_transport": orch_transport,
+        "worker": worker,
+        "queue": queue,
+        "job_store": job_store,
+        "process_next_queued_job": process_next_queued_job,
+    }
+
+
+class TestCrossProjectSleeplessSlavesIntegration:
+    """Verifies live cross-project integration between remotejobs-public and My sleepless slaves."""
+
+    @pytest.mark.asyncio
+    async def test_direct_gateway_connection_all_5_methods(self, sleepless_slaves_stack):
+        """Verify all 5 AIService methods against My sleepless slaves /v1/chat/completions with fallback disabled."""
+        gateway_transport = sleepless_slaves_stack["gateway_transport"]
+        async with httpx.AsyncClient(
+            transport=gateway_transport,
+            base_url="http://sleepless-gateway:8001",
+        ) as http_client:
+            service = DefaultAIService(
+                base_url="http://sleepless-gateway:8001/v1",
+                provider="litellm",
+                fallback_to_heuristics=False,
+                http_client=http_client,
+            )
+
+            # 0. Health check
+            health = await service.check_health()
+            assert health["status"] == "connected"
+            assert health["gateway_liveliness"] is True
+
+            # 1. CV Extraction
+            draft = await service.extract_cv_to_evidence_bank(
+                "Alex Morgan\nPhone: +49 170 1112233\nLinkedIn: https://linkedin.com/in/alexmorgan\nPython, FastAPI"
+            )
+            assert isinstance(draft, ExtractedEvidenceBankDraft)
+            assert draft.phone == "+49 170 1112233"
+            assert len(draft.experiences) >= 1
+            assert len(draft.skills) >= 2
+
+            # 2. Job Prescreen (relevant & irrelevant)
+            pre_rel = await service.prescreen_job("Python backend engineer", "Senior Python Architect", ["Python"])
+            assert pre_rel.relevant is True
+            assert pre_rel.confidence >= 0.8
+
+            pre_irrel = await service.prescreen_job("Python backend engineer", "Executive Pastry Chef", ["Baking"])
+            assert pre_irrel.relevant is False
+
+            # 3. Deep Compatibility Assessment
+            assess = await service.assess_job(
+                "Candidate [EXP_001] [SKILL_001] Python FastAPI",
+                {"title": "Staff Backend Engineer (m/w/d) [Remote]", "company_name": "NovaCloud", "tags": ["Python"]},
+            )
+            assert assess.overall_score == 88
+            assert assess.recommendation == "apply"
+            assert assess.sanitized_job_title == "Staff Backend Engineer"
+            assert "EXP_001" in assess.matching_evidence_ids
+
+            # 4. CV Evidence Selection (Anti-Hallucination verified)
+            allowed = {
+                "experience_bullets": ["EXP_001", "EXP_002"],
+                "skills": ["SKILL_001", "SKILL_002"],
+                "projects": ["PROJ_001"],
+                "certifications": ["CERT_001"],
+            }
+            selection = await service.select_cv_evidence({"title": "Backend Engineer"}, allowed)
+            assert set(selection.experience_bullet_ids) == {"EXP_001", "EXP_002"}
+            assert set(selection.skill_ids) == {"SKILL_001", "SKILL_002"}
+
+            # 5. Grounded Cover Letter
+            letter = await service.generate_cover_letter(
+                "Alex Morgan",
+                {"title": "Staff Backend Engineer", "company_name": "NovaCloud"},
+                [{"stable_id": "EXP_001", "text": "Built distributed pipelines"}],
+                strategy="technical_depth",
+            )
+            assert "NovaCloud" in letter.letter_text
+            assert "Staff Backend Engineer" in letter.letter_text
+            assert letter.referenced_evidence_ids == ["EXP_001"]
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_job_api_all_5_methods(self, sleepless_slaves_stack):
+        """Verify all 5 AIService methods over My sleepless slaves Orchestrator (/jobs -> Worker -> /jobs/{id}/result)."""
+        orch_transport = sleepless_slaves_stack["orch_transport"]
+        process_next = sleepless_slaves_stack["process_next_queued_job"]
+
+        async with httpx.AsyncClient(
+            transport=orch_transport,
+            base_url="http://sleepless-orchestrator:8000",
+        ) as orch_client:
+            service = DefaultAIService(
+                provider="orchestrator",
+                orchestrator_url="http://sleepless-orchestrator:8000",
+                fallback_to_heuristics=False,
+                orchestrator_http_client=orch_client,
+                on_orchestrator_job_submitted=process_next,
+                poll_interval=0.01,
+            )
+
+            # 0. Health check
+            health = await service.check_health()
+            assert health["status"] == "connected"
+            assert health["orchestrator_liveliness"] is True
+
+            # 1. CV Extraction via /jobs
+            draft = await service.extract_cv_to_evidence_bank(
+                "Elena Rostova\nPhone: +49 160 9988776\nGitHub: https://github.com/erostova\nKubernetes, Python"
+            )
+            assert isinstance(draft, ExtractedEvidenceBankDraft)
+            assert draft.phone == "+49 160 9988776"
+            assert "github.com/erostova" in (draft.github_url or "")
+
+            # 2. Prescreen via /jobs
+            pre = await service.prescreen_job("Python, Kubernetes", "Platform AI Engineer", ["Kubernetes", "Python"])
+            assert pre.relevant is True
+            assert pre.confidence == 0.89
+
+            # 3. Assessment via /jobs
+            assess = await service.assess_job(
+                "Elena Rostova [EXP_010] [SKILL_020]",
+                {"title": "Principal Cloud Architect [Remote]", "company_name": "AetherAI", "tags": ["Kubernetes"]},
+            )
+            assert assess.overall_score == 88
+            assert assess.sanitized_job_title == "Principal Cloud Architect"
+            assert "EXP_010" in assess.matching_evidence_ids
+
+            # 4. Evidence Selection via /jobs
+            allowed = {
+                "experience_bullets": ["EXP_010", "EXP_020"],
+                "skills": ["SKILL_020"],
+                "projects": ["PROJ_010"],
+                "certifications": ["CERT_010"],
+            }
+            sel = await service.select_cv_evidence({"title": "Principal Cloud Architect"}, allowed)
+            assert sel.experience_bullet_ids == ["EXP_010", "EXP_020"]
+            assert sel.skill_ids == ["SKILL_020"]
+
+            # 5. Cover Letter via /jobs
+            cl = await service.generate_cover_letter(
+                "Elena Rostova",
+                {"title": "Principal Cloud Architect", "company_name": "AetherAI"},
+                [{"stable_id": "EXP_010", "text": "Scaled K3s GPU clusters to zero"}],
+                strategy="ai_automation",
+            )
+            assert "AetherAI" in cl.letter_text
+            assert cl.strategy_used == "ai_automation"
+            assert cl.referenced_evidence_ids == ["EXP_010"]
+
+    @pytest.mark.asyncio
+    async def test_aws_security_group_failover_from_port_4000_to_orchestrator_8000(self, sleepless_slaves_stack):
+        """When direct gateway (port 4000) is unreachable on AWS, DefaultAIService automatically succeeds via Orchestrator (port 8000)."""
+        orch_transport = sleepless_slaves_stack["orch_transport"]
+        process_next = sleepless_slaves_stack["process_next_queued_job"]
+
+        async with httpx.AsyncClient(
+            transport=orch_transport,
+            base_url="http://51.20.134.201:8000",
+        ) as orch_client:
+            service = DefaultAIService(
+                provider="aws",
+                base_url="http://51.20.134.201:4000/v1",
+                orchestrator_url="http://51.20.134.201:8000",
+                fallback_to_heuristics=False,
+                orchestrator_http_client=orch_client,
+                on_orchestrator_job_submitted=process_next,
+                poll_interval=0.01,
+            )
+
+            # Simulate port 4000 being blocked by AWS Security Group
+            mock_client = MagicMock()
+            mock_client.chat.completions.create = AsyncMock(
+                side_effect=httpx.ConnectError("Port 4000 closed by Security Group")
+            )
+            service._instructor_client = mock_client
+
+            res = await service.prescreen_job(
+                "Python, FastAPI, AWS",
+                "Senior Distributed Systems Engineer",
+                ["Python", "AWS"],
+            )
+            assert res.relevant is True
+            assert res.confidence == 0.89
+
+    @pytest.mark.asyncio
+    async def test_full_remotejobs_workflow_via_sleepless_slaves_orchestrator(
+        self,
+        client: TestClient,
+        sample_user: User,
+        auth_headers: dict,
+        db_session: Session,
+        sleepless_slaves_stack,
+        monkeypatch,
+    ):
+        """End-to-end remotejobs-public workflow routed 100% through My sleepless slaves Orchestrator & AIWorker."""
+        orch_transport = sleepless_slaves_stack["orch_transport"]
+        process_next = sleepless_slaves_stack["process_next_queued_job"]
+        job_store = sleepless_slaves_stack["job_store"]
+
+        orch_client = httpx.AsyncClient(
+            transport=orch_transport,
+            base_url="http://sleepless-orchestrator:8000",
+        )
+        try:
+            monkeypatch.setattr(ai_service, "provider", "orchestrator")
+            monkeypatch.setattr(ai_service, "orchestrator_url", "http://sleepless-orchestrator:8000")
+            monkeypatch.setattr(ai_service, "fallback_to_heuristics", False)
+            monkeypatch.setattr(ai_service, "_orchestrator_http_client", orch_client)
+            monkeypatch.setattr(ai_service, "_on_orchestrator_job_submitted", process_next)
+            monkeypatch.setattr(ai_service, "poll_interval", 0.01)
+
+            # 1. Check /api/v1/ai/status reports connected to Orchestrator
+            status_resp = client.get("/api/v1/ai/status")
+            assert status_resp.status_code == 200
+            status_json = status_resp.json()
+            assert status_json["status"] == "connected"
+            assert status_json["orchestrator_liveliness"] is True
+
+            # 2. Parse CV via Orchestrator + Worker
+            resp_parse = client.post(
+                "/api/v1/cv/parse-text",
+                json={"text": "Marcus Vance\nPhone: +49 151 4455667\nPython, FastAPI, Kubernetes, PostgreSQL"},
+                headers=auth_headers,
+            )
+            assert resp_parse.status_code == 200
+
+            # 3. Verify all extracted evidence items
+            resp_verify = client.post("/api/v1/profile/evidence/verify-all", headers=auth_headers)
+            assert resp_verify.status_code == 200
+
+            # 4. Create target job
+            job = Job(
+                title="Staff AI Infrastructure Engineer (m/w/d)",
+                sanitized_title="Staff AI Infrastructure Engineer",
+                company_name="Hyperion AI",
+                location="Munich, Germany",
+                remote=True,
+                tags=["Python", "FastAPI", "Kubernetes"],
+                job_types=["Full Time"],
+                description="Architect scale-to-zero Kubernetes inference platforms.",
+                url=f"https://example.com/jobs/hyperion-{uuid.uuid4().hex[:6]}",
+                slug=f"job-hyperion-{uuid.uuid4().hex[:6]}",
+                content_hash=uuid.uuid4().hex,
+                published_at=datetime.now(timezone.utc),
+            )
+            db_session.add(job)
+            db_session.commit()
+            db_session.refresh(job)
+
+            # 5. Match job via Orchestrator + Worker
+            resp_match = client.post(f"/api/v1/jobs/{job.id}/match", headers=auth_headers)
+            assert resp_match.status_code == 200
+            assert resp_match.json()["overall_score"] == 88
+
+            # 6. Tailor CV via Orchestrator + Worker
+            resp_tailor = client.post(
+                f"/api/v1/jobs/{job.id}/tailor-cv",
+                json={"max_bullets_per_role": 3},
+                headers=auth_headers,
+            )
+            assert resp_tailor.status_code == 200
+            assert len(resp_tailor.json()["selected_evidence_ids"]) >= 1
+
+            # 7. Generate Cover Letter via Orchestrator + Worker
+            resp_cl = client.post(
+                f"/api/v1/jobs/{job.id}/cover-letter",
+                json={"strategy": "AI & Automation"},
+                headers=auth_headers,
+            )
+            assert resp_cl.status_code == 200
+            assert "Hyperion AI" in resp_cl.json()["content"]
+
+            # Verify that jobs were recorded and completed in My sleepless slaves job_store!
+            completed_jobs = job_store.list_jobs(limit=20)
+            assert len(completed_jobs) >= 4
+            assert all(j.status.value == "completed" for j in completed_jobs)
+        finally:
+            await orch_client.aclose()
+
+
+
+    @pytest.mark.asyncio
+    async def test_dynamic_orchestrator_url_discovery_and_failover(self, sleepless_slaves_stack):
+        """When EC2 restarts with a new Public IP, DefaultAIService discovers the new IP from Wake Lambda and retries automatically."""
+        orch_app = sleepless_slaves_stack["orch_app"]
+        process_next = sleepless_slaves_stack["process_next_queued_job"]
+
+        async def router_handler(request: httpx.Request) -> httpx.Response:
+            host = request.url.host
+            if host == "51.20.134.201":
+                raise httpx.ConnectError("Old EC2 Public IP 51.20.134.201 is no longer reachable")
+            if host == "wake-api.eu-north-1.amazonaws.com":
+                return httpx.Response(
+                    200,
+                    json={
+                        "status": "ok",
+                        "previous_state": "running",
+                        "action_taken": "none",
+                        "public_ip": "13.48.99.101",
+                        "orchestrator_url": "http://13.48.99.101:8000",
+                    },
+                )
+            # Route to in-process Orchestrator ASGI app on the new IP 13.48.99.101
+            transport = ASGITransport(app=orch_app)
+            async with httpx.AsyncClient(transport=transport, base_url="http://13.48.99.101:8000") as inner_client:
+                return await inner_client.request(
+                    method=request.method,
+                    url=str(request.url),
+                    headers=request.headers,
+                    content=request.content,
+                )
+
+        mock_transport = httpx.MockTransport(router_handler)
+        async with httpx.AsyncClient(transport=mock_transport) as client_transport:
+            service = DefaultAIService(
+                provider="orchestrator",
+                orchestrator_url="http://51.20.134.201:8000",
+                wake_url="https://wake-api.eu-north-1.amazonaws.com/wake",
+                fallback_to_heuristics=False,
+                orchestrator_http_client=client_transport,
+                on_orchestrator_job_submitted=process_next,
+                poll_interval=0.01,
+            )
+
+            # Call prescreen_job starting with stale IP 51.20.134.201 -> should auto-update to 13.48.99.101 and succeed
+            res = await service.prescreen_job(
+                "Python, FastAPI, Kubernetes",
+                "Senior Cloud Platform Engineer",
+                ["Python", "Kubernetes"],
+            )
+            assert res.relevant is True
+            assert res.confidence == 0.89
+            assert service.orchestrator_url == "http://13.48.99.101:8000"
+
+
+def test_ai_wake_endpoint(client: TestClient, monkeypatch):
+    """POST /api/v1/ai/wake must trigger wake and return updated orchestrator_url and health."""
+    async def fake_trigger_wake():
+        ai_service.orchestrator_url = "http://13.48.99.101:8000"
+        return True
+
+    monkeypatch.setattr(ai_service, "wake_url", "https://wake-api.eu-north-1.amazonaws.com/wake")
+    monkeypatch.setattr(ai_service, "trigger_wake", fake_trigger_wake)
+
+    resp = client.post("/api/v1/ai/wake")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["wake_triggered"] is True
+    assert data["wake_url_configured"] is True
+    assert data["orchestrator_url"] == "http://13.48.99.101:8000"
+    assert "ai_status" in data

@@ -26,6 +26,7 @@ from app.models.profile import CandidateProfile
 from app.models.user import User
 from app.protocols.ai_service import AIService, CVSelectionResult
 from app.services.evidence_validation import (
+    compute_evidence_verification_status,
     get_user_allowed_evidence_ids,
     resolve_verified_evidence_text,
     validate_selected_evidence_ids,
@@ -46,8 +47,13 @@ class CVTailoringService:
         user: User,
         job: Job,
         max_bullets_per_role: int = 4,
+        require_verified: bool = False,
     ) -> GeneratedDocument:
-        """Tailor and render a .docx CV strictly from verified candidate evidence."""
+        """Tailor and render a .docx CV strictly from candidate evidence.
+        
+        If require_verified=True, restricts selection to verified evidence (partner-ready).
+        If require_verified=False, selects across all candidate evidence without modifying DB flags.
+        """
         # 1. Retrieve CandidateProfile (auto-create default if not present)
         profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
         if not profile:
@@ -60,20 +66,14 @@ class CVTailoringService:
             db.commit()
             db.refresh(profile)
 
-        # 2. Get verified allowed evidence IDs
-        allowed_ids = get_user_allowed_evidence_ids(db, user.id, verified_only=True)
+        # 2. Get allowed evidence IDs scoped strictly to candidate
+        allowed_ids = get_user_allowed_evidence_ids(db, user.id, verified_only=require_verified)
         if not allowed_ids:
-            # Fallback: if user hasn't explicitly verified yet, check all items and verify them
-            all_ids = get_user_allowed_evidence_ids(db, user.id, verified_only=False)
-            if not all_ids:
-                raise ValueError("No candidate evidence items found. Please upload a CV first.")
-            db.query(EvidenceItem).filter(EvidenceItem.user_id == user.id).update({"is_verified": True})
-            db.query(Skill).filter(Skill.user_id == user.id).update({"is_verified": True})
-            db.query(Project).filter(Project.user_id == user.id).update({"is_verified": True})
-            db.query(Certification).filter(Certification.user_id == user.id).update({"is_verified": True})
-            db.query(EducationRecord).filter(EducationRecord.user_id == user.id).update({"is_verified": True})
-            db.commit()
-            allowed_ids = get_user_allowed_evidence_ids(db, user.id, verified_only=True)
+            if require_verified:
+                has_any = get_user_allowed_evidence_ids(db, user.id, verified_only=False)
+                if has_any:
+                    raise ValueError("No verified candidate evidence items found. Please verify your evidence or generate with require_verified=False.")
+            raise ValueError("No candidate evidence items found. Please upload a CV first.")
 
         grouped_allowed: Dict[str, List[str]] = {
             "experience_bullets": [sid for sid in allowed_ids if sid.startswith("EXP")],
@@ -109,7 +109,7 @@ class CVTailoringService:
         if not selection.certification_ids:
             selection.certification_ids = grouped_allowed["certifications"][:3]
 
-        # Ensure experiences with verified evidence have representation
+        # Ensure experiences with evidence have representation
         experiences_db = (
             db.query(ExperienceRecord)
             .filter(ExperienceRecord.user_id == user.id)
@@ -119,19 +119,20 @@ class CVTailoringService:
 
         selected_bullet_id_set = set(selection.experience_bullet_ids)
         for exp in experiences_db:
-            exp_verified_bullets = (
+            exp_q = (
                 db.query(EvidenceItem)
                 .filter(
                     EvidenceItem.user_id == user.id,
                     EvidenceItem.experience_record_id == exp.id,
-                    EvidenceItem.is_verified.is_(True),
                 )
-                .order_by(EvidenceItem.display_order)
-                .all()
             )
-            has_selected = any(b.stable_id in selected_bullet_id_set for b in exp_verified_bullets)
-            if not has_selected and exp_verified_bullets:
-                fallback_sid = exp_verified_bullets[0].stable_id
+            if require_verified:
+                exp_q = exp_q.filter(EvidenceItem.is_verified.is_(True))
+            exp_bullets = exp_q.order_by(EvidenceItem.display_order).all()
+
+            has_selected = any(b.stable_id in selected_bullet_id_set for b in exp_bullets)
+            if not has_selected and exp_bullets:
+                fallback_sid = exp_bullets[0].stable_id
                 if fallback_sid in allowed_ids:
                     selection.experience_bullet_ids.append(fallback_sid)
                     selected_bullet_id_set.add(fallback_sid)
@@ -146,8 +147,13 @@ class CVTailoringService:
         # 4. Strict Non-Negotiable Validation
         validate_selected_evidence_ids(all_selected, allowed_ids)
 
-        # 5. Resolve verified text from database
-        resolved_items = resolve_verified_evidence_text(db, user.id, all_selected)
+        # 5. Resolve verified/allowed text from database
+        resolved_items = resolve_verified_evidence_text(
+            db,
+            user.id,
+            all_selected,
+            verified_only=require_verified,
+        )
 
         # 6. Build document context strictly from resolved verified items
         exp_bullets_map: Dict[uuid.UUID, List[str]] = {}
@@ -240,7 +246,13 @@ class CVTailoringService:
         doc.render(context)
         doc.save(str(file_path))
 
-        # 8. Persist GeneratedDocument in database
+        # Read binary file for persistent cloud/Railway storage resilience
+        file_bytes = file_path.read_bytes() if file_path.exists() else None
+
+        # Determine verification trust status
+        verification_status = compute_evidence_verification_status(db, user.id, all_selected)
+
+        # 8. Persist GeneratedDocument in database with backup bytes and verification tier
         gen_doc = GeneratedDocument(
             id=doc_id,
             user_id=user.id,
@@ -248,6 +260,8 @@ class CVTailoringService:
             document_type="cv",
             format="docx",
             file_path=str(file_path),
+            file_bytes=file_bytes,
+            verification_status=verification_status,
             selected_evidence_ids=all_selected,
         )
         db.add(gen_doc)

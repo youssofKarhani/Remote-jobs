@@ -14,6 +14,7 @@ class GeneratedDocumentRead(BaseModel):
     job_id: Optional[uuid.UUID] = None
     document_type: str
     format: str
+    verification_status: str = "unverified"
     selected_evidence_ids: Optional[List[str]] = None
     download_url: Optional[str] = None
     created_at: datetime
@@ -22,3 +23,4 @@ class GeneratedDocumentRead(BaseModel):
 class TailorCVRequest(BaseModel):
     max_bullets_per_role: int = 4
     template_name: str = "modern"
+    require_verified: bool = False

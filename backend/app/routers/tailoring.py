@@ -40,6 +40,7 @@ async def tailor_cv_for_job(
             user=current_user,
             job=job,
             max_bullets_per_role=payload.max_bullets_per_role,
+            require_verified=payload.require_verified,
         )
     except ValueError as e:
         raise HTTPException(
@@ -53,6 +54,7 @@ async def tailor_cv_for_job(
         job_id=gen_doc.job_id,
         document_type=gen_doc.document_type,
         format=gen_doc.format,
+        verification_status=gen_doc.verification_status or "unverified",
         selected_evidence_ids=gen_doc.selected_evidence_ids,
         download_url=f"/api/v1/documents/{gen_doc.id}/download",
         created_at=gen_doc.created_at,
@@ -84,6 +86,7 @@ async def get_document_info(
         job_id=doc.job_id,
         document_type=doc.document_type,
         format=doc.format,
+        verification_status=doc.verification_status or "unverified",
         selected_evidence_ids=doc.selected_evidence_ids,
         download_url=f"/api/v1/documents/{doc.id}/download",
         created_at=doc.created_at,
@@ -108,15 +111,25 @@ async def download_generated_document(
             detail=f"Document '{document_id}' not found.",
         )
 
-    if not os.path.exists(doc.file_path):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document file not found on disk.",
+    filename = f"CV_Tailored_{doc.id.hex[:8]}.docx"
+
+    if os.path.exists(doc.file_path):
+        return FileResponse(
+            path=doc.file_path,
+            filename=filename,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         )
 
-    filename = f"CV_Tailored_{doc.id.hex[:8]}.docx"
-    return FileResponse(
-        path=doc.file_path,
-        filename=filename,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    # Cloud/Railway container resilience: stream from database bytes if disk file was wiped
+    if doc.file_bytes:
+        from fastapi.responses import Response
+        return Response(
+            content=doc.file_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Document file not found on disk.",
     )

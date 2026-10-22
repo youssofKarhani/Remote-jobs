@@ -9,6 +9,7 @@ export interface JobAssessment {
   location_score: number;
   language_score: number;
   confidence: number;
+  evaluation_mode?: "ai" | "heuristic" | "prescreen_filtered" | string;
   strengths: string[];
   missing_requirements: string[];
   matching_evidence_ids: string[];
