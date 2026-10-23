@@ -116,9 +116,6 @@ export function Navbar() {
 
         {/* Right Section: Actions & Mobile Toggle */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Automated Pipeline Schedule Badge (desktop xl+) */}
-          <PipelineScheduleDialog />
-
           {isAuthenticated && user ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
               <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-mono bg-zinc-900/90 px-2.5 sm:px-3 py-1.5 rounded-lg border border-zinc-800 whitespace-nowrap">

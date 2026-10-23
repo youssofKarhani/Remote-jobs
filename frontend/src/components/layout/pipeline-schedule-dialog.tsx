@@ -81,16 +81,18 @@ interface MissingItem {
   icon: "file" | "shield" | "sliders";
 }
 
-interface PipelineScheduleDialogProps {
+export interface PipelineScheduleDialogProps {
   className?: string;
   triggerLabel?: string;
   showPrefix?: boolean;
+  variant?: "badge" | "floating";
 }
 
 export function PipelineScheduleDialog({
   className,
   triggerLabel,
   showPrefix = false,
+  variant = "badge",
 }: PipelineScheduleDialogProps = {}) {
   const { user, isAuthenticated, loginAsDemo } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -260,40 +262,103 @@ export function PipelineScheduleDialog({
         <DialogTrigger asChild>
           <button
             type="button"
-            aria-label="View AI Pipeline Timetable and Cutoff"
-            className={cn(
-              "hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer shadow-sm select-none",
-              timeState.isRunning
-                ? "bg-violet-950/60 border border-violet-700/60 text-violet-300 hover:bg-violet-900/60"
-                : isUrgent
-                ? "bg-amber-950/50 border border-amber-700/50 text-amber-300 hover:bg-amber-900/50"
-                : "bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-900/40 hover:border-emerald-700/60",
-              className
-            )}
+            aria-label="View Next AI Batch Run schedule and countdown"
+            className={
+              variant === "floating"
+                ? cn(
+                    "fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40 group flex items-center gap-2.5 px-4 py-2.5 rounded-full text-xs font-mono font-medium",
+                    "bg-zinc-950/90 backdrop-blur-xl border text-zinc-200",
+                    "shadow-2xl shadow-black/80 hover:shadow-[0_0_25px_rgba(16,185,129,0.35)]",
+                    "hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer select-none",
+                    timeState.isRunning
+                      ? "border-violet-600/50 bg-violet-950/80 text-violet-200"
+                      : isUrgent
+                      ? "border-amber-600/50 bg-amber-950/80 text-amber-200"
+                      : "border-zinc-800 hover:border-emerald-500/50",
+                    className
+                  )
+                : cn(
+                    "hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer shadow-sm select-none",
+                    timeState.isRunning
+                      ? "bg-violet-950/60 border border-violet-700/60 text-violet-300 hover:bg-violet-900/60"
+                      : isUrgent
+                      ? "bg-amber-950/50 border border-amber-700/50 text-amber-300 hover:bg-amber-900/50"
+                      : "bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-900/40 hover:border-emerald-700/60",
+                    className
+                  )
+            }
           >
-            <span
-              className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                timeState.isRunning
-                  ? "bg-violet-400 animate-ping"
-                  : isUrgent
-                  ? "bg-amber-400 animate-bounce"
-                  : "bg-emerald-400 animate-pulse"
-              }`}
-            />
-            <Clock className="h-3 w-3 opacity-80 shrink-0" />
-            {mounted && timeState.isRunning ? (
-              <span>Pipeline Running...</span>
-            ) : triggerLabel ? (
-              <span>{triggerLabel}</span>
+            {variant === "floating" ? (
+              <>
+                <span className="relative flex h-2 w-2">
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                      timeState.isRunning
+                        ? "bg-violet-400"
+                        : isUrgent
+                        ? "bg-amber-400"
+                        : "bg-emerald-400"
+                    }`}
+                  />
+                  <span
+                    className={`relative inline-flex rounded-full h-2 w-2 ${
+                      timeState.isRunning
+                        ? "bg-violet-500"
+                        : isUrgent
+                        ? "bg-amber-500"
+                        : "bg-emerald-400"
+                    }`}
+                  />
+                </span>
+
+                <Clock className="h-3.5 w-3.5 text-emerald-400 shrink-0 group-hover:rotate-12 transition-transform duration-300" />
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-zinc-400 hidden sm:inline">Next AI Batch:</span>
+                  <span className="text-emerald-400 font-bold tabular-nums">
+                    {mounted ? (
+                      timeState.isRunning ? (
+                        "Running..."
+                      ) : (
+                        `${String(timeState.hours).padStart(2, "0")}h ${String(timeState.minutes).padStart(2, "0")}m ${String(timeState.seconds).padStart(2, "0")}s`
+                      )
+                    ) : (
+                      "06:00 UTC"
+                    )}
+                  </span>
+                </div>
+
+                <span className="hidden md:inline-block px-1.5 py-0.5 rounded text-[10px] bg-zinc-900 border border-zinc-800 text-zinc-400 ml-0.5">
+                  06:00 UTC
+                </span>
+              </>
             ) : (
-              <span>
-                {showPrefix ? (
-                  <span>Next Run: </span>
+              <>
+                <span
+                  className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                    timeState.isRunning
+                      ? "bg-violet-400 animate-ping"
+                      : isUrgent
+                      ? "bg-amber-400 animate-bounce"
+                      : "bg-emerald-400 animate-pulse"
+                  }`}
+                />
+                <Clock className="h-3 w-3 opacity-80 shrink-0" />
+                {mounted && timeState.isRunning ? (
+                  <span>Pipeline Running...</span>
+                ) : triggerLabel ? (
+                  <span>{triggerLabel}</span>
                 ) : (
-                  <span className="hidden 2xl:inline">Next Run: </span>
+                  <span>
+                    {showPrefix ? (
+                      <span>Next Run: </span>
+                    ) : (
+                      <span className="hidden 2xl:inline">Next Run: </span>
+                    )}
+                    {getBadgeTime()}
+                  </span>
                 )}
-                {getBadgeTime()}
-              </span>
+              </>
             )}
           </button>
         </DialogTrigger>
@@ -518,4 +583,8 @@ export function PipelineScheduleDialog({
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </>
   );
+}
+
+export function FloatingPipelineSchedule({ className }: { className?: string } = {}) {
+  return <PipelineScheduleDialog variant="floating" className={className} />;
 }

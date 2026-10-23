@@ -5,14 +5,13 @@ import { CoreConceptAnimation } from "@/components/home/core-concept-animation";
 import { PipelineTimeline } from "@/components/home/pipeline-timeline";
 import { CoreGuaranteeBanner } from "@/components/home/core-guarantee-banner";
 import { ArchitectureDialog } from "@/components/home/architecture-dialog";
+import { FloatingPipelineSchedule } from "@/components/layout/pipeline-schedule-dialog";
 
 export default function HomePage() {
   return (
     <div className="space-y-24 md:space-y-36 py-12 md:py-24">
-      
       {/* 1. HERO SECTION (Dead-center alignment with massive surrounding whitespace) */}
       <section className="text-center space-y-10 max-w-4xl mx-auto pt-8 md:pt-16 px-4">
-        
         {/* Anti-Hallucination Pill Tag */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-mono font-medium bg-violet-950/40 text-violet-400 border border-violet-800/40 shadow-sm">
           <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
@@ -68,6 +67,8 @@ export default function HomePage() {
       {/* 4. FOOTER CALLOUT (Sleek full-width Geist Mono banner) */}
       <CoreGuaranteeBanner />
 
+      {/* Floating Next AI Batch Run Bubble */}
+      <FloatingPipelineSchedule />
     </div>
   );
 }
