@@ -22,6 +22,7 @@ import { BrandIcon } from "@/components/layout/brand-icon";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "@/components/auth/auth-dialog";
+import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import { Button } from "@/components/ui/button";
 import { PipelineScheduleDialog } from "./pipeline-schedule-dialog";
 
@@ -45,6 +46,7 @@ export function Navbar() {
   const pathname = usePathname();
   const { user, isAuthenticated, logout, loginAsDemo } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
 
   // Close mobile drawer on navigation
   useEffect(() => {
@@ -126,7 +128,7 @@ export function Navbar() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={logout}
+                onClick={() => setSignOutDialogOpen(true)}
                 title="Sign out"
                 className="h-8 px-2 sm:px-2.5 text-xs border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 shrink-0"
               >
@@ -281,8 +283,8 @@ export function Navbar() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      logout();
                       setMobileMenuOpen(false);
+                      setSignOutDialogOpen(true);
                     }}
                     className="w-full h-9 text-xs border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white gap-2"
                   >
@@ -321,6 +323,12 @@ export function Navbar() {
           </div>
         </div>
       )}
+
+      {/* Confirmation modal before signing out */}
+      <SignOutDialog
+        open={signOutDialogOpen}
+        onOpenChange={setSignOutDialogOpen}
+      />
     </header>
   );
 }

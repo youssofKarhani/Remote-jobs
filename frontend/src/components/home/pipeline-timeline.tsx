@@ -402,7 +402,7 @@ function MatchVisual({ isActive }: { isActive: boolean }) {
             : "bg-zinc-950 border-zinc-800 text-zinc-500 scale-95"
         }`}>
           <Sparkles className="w-3 h-3 text-emerald-400" />
-          <span className="text-[11px] font-mono font-bold">96% Fit</span>
+          <span className="text-[11px] font-mono font-bold">High Match</span>
         </div>
 
       </div>

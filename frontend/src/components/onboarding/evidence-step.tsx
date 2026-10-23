@@ -1,13 +1,23 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, FileText, CheckCircle2, Loader2, Sparkles, Layers, ShieldCheck, ArrowRight } from "lucide-react";
+import {
+  UploadCloud,
+  FileText,
+  CheckCircle2,
+  Loader2,
+  Sparkles,
+  ShieldCheck,
+  AlertCircle,
+  FileCode,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cvApi } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { ExtractionSummaryData } from "./evidence-bank-step";
 
-const SAMPLE_DEMO_CV = `
-Alex Rivera
+const SAMPLE_DEMO_CV = `Alex Rivera
 Senior Distributed Systems & Backend Engineer
 Berlin, Germany | alex.rivera@example.com
 
@@ -36,65 +46,71 @@ B.S. in Computer Science | Technical University of Munich | 2015 - 2019
 
 interface EvidenceStepProps {
   targetRole: string;
-  onComplete: (data: { filesCount: number; dataPointsCount: number }) => void;
+  onComplete: (summary: ExtractionSummaryData) => void;
   onBack: () => void;
 }
 
 export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepProps) {
+  const { isAuthenticated, loginAsDemo } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
-  const [files, setFiles] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processStage, setProcessStage] = useState<number>(0);
+  const [statusMessage, setStatusMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"upload" | "paste">("upload");
+  const [pastedText, setPastedText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const STAGES = [
-    { label: "Merging 3 documents...", progress: 34, icon: Layers },
-    { label: "Removing duplicates...", progress: 68, icon: Sparkles },
-    { label: "Verifying 42 data points...", progress: 100, icon: ShieldCheck },
-  ];
-
-  // Progressive simulated deduplication state
-  useEffect(() => {
-    if (!isProcessing) return;
-
-    const timer1 = setTimeout(() => {
-      setProcessStage(1);
-    }, 1200);
-
-    const timer2 = setTimeout(() => {
-      setProcessStage(2);
-    }, 2400);
-
-    const timer3 = setTimeout(() => {
-      onComplete({
-        filesCount: Math.max(files.length, 3),
-        dataPointsCount: 42,
-      });
-    }, 3800);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-    };
-  }, [isProcessing, files, onComplete]);
-
-  const handleStartProcess = async (initialFiles: string[], rawFiles?: File[]) => {
-    setFiles(initialFiles);
+  const executeExtraction = async (file?: File, text?: string, filename?: string) => {
     setIsProcessing(true);
-    setProcessStage(0);
+    setErrorMessage(null);
+    setStatusMessage("Initializing extraction pipeline...");
 
-    // Call real backend extraction in background
     try {
-      if (rawFiles && rawFiles.length > 0) {
-        for (const file of rawFiles) {
-          await cvApi.uploadCV(file);
-        }
-      } else {
-        await cvApi.parseText(SAMPLE_DEMO_CV);
+      // Ensure session is active so backend persists the evidence
+      if (!isAuthenticated) {
+        setStatusMessage("Establishing candidate session...");
+        await loginAsDemo();
       }
-    } catch (err) {
-      console.warn("Evidence extraction background notice:", err);
+
+      let res;
+      if (file) {
+        setStatusMessage(`Parsing document ${file.name}...`);
+        res = await cvApi.uploadCV(file);
+      } else if (text && text.trim()) {
+        setStatusMessage("Analyzing resume text through AI Gateway...");
+        res = await cvApi.parseText(text);
+      } else {
+        throw new Error("Please select a file or paste resume text.");
+      }
+
+      setStatusMessage("Assigning immutable stable IDs and persisting to Evidence Bank...");
+
+      const summary = res?.summary || {
+        experiences_extracted: 0,
+        bullets_extracted: 0,
+        skills_extracted: 0,
+        projects_extracted: 0,
+        education_extracted: 0,
+        certifications_extracted: 0,
+      };
+
+      const finalData: ExtractionSummaryData = {
+        experiencesCount: summary.experiences_extracted || 0,
+        bulletsCount: summary.bullets_extracted || 0,
+        skillsCount: summary.skills_extracted || 0,
+        projectsCount: summary.projects_extracted || 0,
+        educationCount: summary.education_extracted || 0,
+        certificationsCount: summary.certifications_extracted || 0,
+        sourceFilename: filename || (file ? file.name : "Pasted Resume Text"),
+      };
+
+      onComplete(finalData);
+    } catch (err: any) {
+      console.error("Extraction error:", err);
+      setErrorMessage(
+        err?.message || "Failed to parse document. Please check the file format and try again."
+      );
+      setIsProcessing(false);
     }
   };
 
@@ -102,26 +118,29 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const raw = Array.from(e.dataTransfer.files);
-      const names = raw.map((f) => f.name);
-      handleStartProcess(names, raw);
+      const file = e.dataTransfer.files[0];
+      executeExtraction(file, undefined, file.name);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const raw = Array.from(e.target.files);
-      const names = raw.map((f) => f.name);
-      handleStartProcess(names, raw);
+      const file = e.target.files[0];
+      executeExtraction(file, undefined, file.name);
     }
   };
 
-  const handleSimulateDemo = () => {
-    handleStartProcess([
-      "Master_Resume_2026.pdf",
-      "Cloud_Automation_Heavy.docx",
-      "Legacy_Technical_History.txt",
-    ]);
+  const handleSimulateSample = () => {
+    executeExtraction(undefined, SAMPLE_DEMO_CV, "Alex_Rivera_Sample_CV.txt");
+  };
+
+  const handlePasteSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pastedText.trim()) {
+      setErrorMessage("Please paste resume text before proceeding.");
+      return;
+    }
+    executeExtraction(undefined, pastedText, "Pasted Technical Resume");
   };
 
   return (
@@ -130,149 +149,177 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
       transition={{ duration: 0.4 }}
-      className="max-w-4xl mx-auto w-full py-6 md:py-12 space-y-8"
+      className="max-w-4xl mx-auto w-full py-6 md:py-10 space-y-8"
     >
-      {/* Top Breadcrumb & Step Header */}
+      {/* Top Header */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-medium bg-zinc-900 border border-zinc-800 text-zinc-400">
           <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-          Step 02 &bull; Evidence Ingestion
+          Step 02 &bull; Resume Ingestion
         </div>
 
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-light tracking-tight text-zinc-100">
-          Upload your master CV, your tech-heavy variant, and any old resumes.
+          Upload your existing CV or experience.
         </h2>
 
         <p className="text-sm md:text-base text-zinc-400 font-light max-w-2xl mx-auto leading-relaxed">
-          Our extraction gateway deconstructs all of them into a single, unified Evidence Bank of discrete immutable facts.
+          We deconstruct your resume into discrete, verifiable records in your Evidence Bank. 
+          No fake compatibility numbers &mdash; you can tailor and curate this evidence for any job.
         </p>
       </div>
 
-      {/* Main Drag-and-Drop Area / Ingestion State */}
+      {/* Error alert if any */}
+      {errorMessage && (
+        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30 flex items-center gap-3 text-destructive text-xs sm:text-sm max-w-2xl mx-auto">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Main Container */}
       <div className="relative">
         <AnimatePresence mode="wait">
           {!isProcessing ? (
             <motion.div
-              key="dropzone"
+              key="input-stage"
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`relative rounded-3xl border-2 border-dashed p-8 sm:p-14 md:p-16 text-center cursor-pointer transition-all duration-300 backdrop-blur-xl ${
-                isDragging
-                  ? "border-violet-400 bg-violet-950/20 shadow-[0_0_40px_rgba(139,92,246,0.25)] scale-[1.01]"
-                  : "border-zinc-800 bg-zinc-950/70 hover:border-zinc-700 hover:bg-zinc-900/40"
-              }`}
+              className="space-y-4"
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.docx,.txt"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-
-              <div className="flex flex-col items-center justify-center space-y-5">
-                <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-violet-400 shadow-lg">
-                  <UploadCloud className="w-8 h-8 text-violet-400" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="text-base sm:text-lg font-normal text-zinc-200">
-                    Drag and drop files here, or <span className="text-violet-400 underline underline-offset-4 font-medium">browse local files</span>
-                  </div>
-                  <p className="text-xs text-zinc-400 font-sans">
-                    Supports multiple PDF, DOCX, and TXT documents simultaneously
-                  </p>
-                </div>
-
-                <div className="pt-2 flex items-center gap-2 text-xs font-mono text-zinc-400 bg-zinc-900/60 px-3.5 py-1.5 rounded-full border border-zinc-800/80">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Target Alignment: {targetRole}</span>
-                </div>
+              {/* Tab Selector */}
+              <div className="flex items-center justify-center gap-2 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("upload")}
+                  className={`px-4 py-1.5 rounded-full text-xs font-mono transition-colors ${
+                    activeTab === "upload"
+                      ? "bg-violet-600 text-white font-medium"
+                      : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                  }`}
+                >
+                  File Upload (PDF / DOCX / TXT)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("paste")}
+                  className={`px-4 py-1.5 rounded-full text-xs font-mono transition-colors ${
+                    activeTab === "paste"
+                      ? "bg-violet-600 text-white font-medium"
+                      : "bg-zinc-900 text-zinc-400 hover:text-zinc-200 border border-zinc-800"
+                  }`}
+                >
+                  Paste Plain Text
+                </button>
               </div>
+
+              {activeTab === "upload" ? (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`relative rounded-3xl border-2 border-dashed p-8 sm:p-12 md:p-14 text-center cursor-pointer transition-all duration-300 backdrop-blur-xl ${
+                    isDragging
+                      ? "border-violet-400 bg-violet-950/20 shadow-[0_0_40px_rgba(139,92,246,0.25)] scale-[1.01]"
+                      : "border-zinc-800 bg-zinc-950/70 hover:border-zinc-700 hover:bg-zinc-900/40"
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.doc,.txt,.md"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+
+                  <div className="flex flex-col items-center justify-center space-y-4">
+                    <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-violet-400 shadow-lg">
+                      <UploadCloud className="w-8 h-8 text-violet-400" />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="text-base sm:text-lg font-normal text-zinc-200">
+                        Drag and drop your resume here, or{" "}
+                        <span className="text-violet-400 underline underline-offset-4 font-medium">
+                          browse files
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-400 font-sans">
+                        Supports PDF, DOCX, and TXT up to 15MB
+                      </p>
+                    </div>
+
+                    <div className="pt-2 flex items-center gap-2 text-xs font-mono text-zinc-400 bg-zinc-900/60 px-3.5 py-1.5 rounded-full border border-zinc-800/80">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Targeting: {targetRole || "Software Engineer"}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <form
+                  onSubmit={handlePasteSubmit}
+                  className="rounded-3xl border border-zinc-800 bg-zinc-950/70 p-6 sm:p-8 space-y-4 backdrop-blur-xl"
+                >
+                  <div className="space-y-1">
+                    <label className="text-xs font-mono text-zinc-400">
+                      Paste Resume Content (Plain Text)
+                    </label>
+                    <textarea
+                      value={pastedText}
+                      onChange={(e) => setPastedText(e.target.value)}
+                      placeholder="Paste your resume or CV text here..."
+                      rows={10}
+                      className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl p-4 text-xs font-mono text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:border-violet-500 transition-colors"
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="submit"
+                      disabled={!pastedText.trim()}
+                      className="bg-violet-600 hover:bg-violet-500 text-white text-xs font-mono rounded-xl px-5 h-10 gap-2"
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Extract Experience
+                    </Button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           ) : (
             <motion.div
-              key="processing"
+              key="processing-stage"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="rounded-3xl border border-zinc-800 bg-zinc-950/90 p-8 sm:p-14 md:p-16 text-center space-y-8 shadow-2xl backdrop-blur-xl"
+              className="rounded-3xl border border-zinc-800 bg-zinc-950/90 p-8 sm:p-14 text-center space-y-6 shadow-2xl backdrop-blur-xl"
             >
-              {/* Spinning processor badge */}
-              <div className="relative flex items-center justify-center">
-                <div className="w-20 h-20 rounded-full bg-violet-600/10 flex items-center justify-center border border-violet-500/30">
-                  <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
-                </div>
+              <div className="w-16 h-16 rounded-full bg-violet-600/10 flex items-center justify-center border border-violet-500/30 mx-auto">
+                <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
               </div>
 
-              {/* Dynamic Status Progress Text */}
-              <div className="space-y-3 max-w-md mx-auto">
-                <h3 className="text-xl sm:text-2xl font-light text-zinc-100">
-                  {STAGES[processStage].label}
+              <div className="space-y-2 max-w-md mx-auto">
+                <h3 className="text-xl font-light text-zinc-100">
+                  {statusMessage || "Extracting Evidence..."}
                 </h3>
                 <p className="text-xs text-zinc-400 font-mono">
-                  Synthesizing multiple resumes into one unified Evidence Bank...
+                  Deconstructing resume into immutable, verified entities...
                 </p>
               </div>
 
-              {/* Minimalist Progress Track */}
-              <div className="max-w-md mx-auto space-y-2">
-                <div className="w-full h-1.5 rounded-full bg-zinc-900 overflow-hidden border border-zinc-800">
-                  <motion.div
-                    className="h-full bg-gradient-to-r from-violet-500 to-indigo-500"
-                    initial={{ width: "10%" }}
-                    animate={{ width: `${STAGES[processStage].progress}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                  />
-                </div>
-                <div className="flex justify-between text-[11px] font-mono text-zinc-400">
-                  <span>Processing Evidence</span>
-                  <span>{STAGES[processStage].progress}%</span>
-                </div>
-              </div>
-
-              {/* Progress Milestones */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto pt-2">
-                {STAGES.map((stg, i) => {
-                  const Icon = stg.icon;
-                  const isDone = processStage > i;
-                  const isCurrent = processStage === i;
-                  return (
-                    <div
-                      key={stg.label}
-                      className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-colors ${
-                        isDone
-                          ? "bg-zinc-900/90 border-emerald-500/30 text-emerald-300"
-                          : isCurrent
-                          ? "bg-zinc-900 border-violet-500/40 text-violet-200"
-                          : "bg-zinc-950 border-zinc-800/60 text-zinc-400"
-                      }`}
-                    >
-                      {isDone ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      ) : (
-                        <Icon className={`w-4 h-4 shrink-0 ${isCurrent ? "text-violet-400 animate-pulse" : "text-zinc-600"}`} />
-                      )}
-                      <span className="text-xs font-mono truncate">{stg.label}</span>
-                    </div>
-                  );
-                })}
+              <div className="pt-2 flex items-center justify-center gap-2 text-xs font-mono text-zinc-400">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Deterministic Zero-Hallucination Pipeline</span>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Alternative Instant Testing Option */}
+      {/* Instant Testing Option for Demo / Quick Verification */}
       {!isProcessing && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-zinc-900">
           <button
@@ -286,11 +333,11 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
           <Button
             type="button"
             variant="outline"
-            onClick={handleSimulateDemo}
+            onClick={handleSimulateSample}
             className="h-10 px-5 text-xs font-mono border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-full gap-2 transition-colors"
           >
             <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-            <span>Instant Simulation: 3 Sample Resumes</span>
+            <span>Load Sample Technical Resume</span>
           </Button>
         </div>
       )}

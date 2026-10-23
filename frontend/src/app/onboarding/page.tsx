@@ -1,25 +1,29 @@
 "use client";
 
 import React, { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { ArrowLeft, Check, Sparkles } from "lucide-react";
 import { TargetStep } from "@/components/onboarding/target-step";
 import { EvidenceStep } from "@/components/onboarding/evidence-step";
-import { SynthesisStep } from "@/components/onboarding/synthesis-step";
-import { GapAssessmentStep } from "@/components/onboarding/gap-assessment-step";
+import { EvidenceBankStep, ExtractionSummaryData } from "@/components/onboarding/evidence-bank-step";
 
 export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [targetRole, setTargetRole] = useState<string>("Automation Engineer");
-  const [filesCount, setFilesCount] = useState<number>(3);
-  const [dataPointsCount, setDataPointsCount] = useState<number>(42);
+  const [targetRole, setTargetRole] = useState<string>("Staff Backend Engineer");
+  const [extractionSummary, setExtractionSummary] = useState<ExtractionSummaryData>({
+    experiencesCount: 0,
+    bulletsCount: 0,
+    skillsCount: 0,
+    projectsCount: 0,
+    educationCount: 0,
+    certificationsCount: 0,
+  });
 
   const STEPS_META = [
-    { id: 1, label: "Target" },
-    { id: 2, label: "Evidence" },
-    { id: 3, label: "Synthesis" },
-    { id: 4, label: "Calibration" },
+    { id: 1, label: "Target Role" },
+    { id: 2, label: "CV Ingestion" },
+    { id: 3, label: "Evidence Bank" },
   ];
 
   return (
@@ -45,11 +49,11 @@ export default function OnboardingPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    // Allow jumping back to earlier steps
+                    // Allow jumping back to earlier completed steps
                     if (isCompleted) setCurrentStep(step.id);
                   }}
                   disabled={!isCompleted}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono transition-all ${
                     isCurrent
                       ? "bg-violet-950/60 text-violet-300 border border-violet-500/40 shadow-sm"
                       : isCompleted
@@ -85,7 +89,7 @@ export default function OnboardingPage() {
 
         <div className="hidden md:flex items-center gap-1.5 text-[11px] font-mono text-zinc-400">
           <Sparkles className="w-3 h-3 text-violet-400" />
-          <span>Progressive Disclosure</span>
+          <span>Verified Ingestion</span>
         </div>
       </div>
 
@@ -109,38 +113,24 @@ export default function OnboardingPage() {
               targetRole={targetRole}
               onBack={() => setCurrentStep(1)}
               onComplete={(result) => {
-                setFilesCount(result.filesCount);
-                setDataPointsCount(result.dataPointsCount);
+                setExtractionSummary(result);
                 setCurrentStep(3);
               }}
             />
           )}
 
           {currentStep === 3 && (
-            <SynthesisStep
+            <EvidenceBankStep
               key="step-3"
               targetRole={targetRole}
-              filesCount={filesCount}
-              dataPointsCount={dataPointsCount}
-              baselineMatch={92}
-              onBack={() => setCurrentStep(2)}
-              onProceed={() => setCurrentStep(4)}
-            />
-          )}
-
-          {currentStep === 4 && (
-            <GapAssessmentStep
-              key="step-4"
-              targetRole={targetRole}
-              initialScore={92}
-              boostedScore={98}
-              onBack={() => setCurrentStep(3)}
+              summary={extractionSummary}
+              onUploadAnother={() => setCurrentStep(2)}
             />
           )}
         </AnimatePresence>
       </div>
 
-      {/* Subtle Bottom System Integrity Watermark */}
+      {/* Bottom System Integrity Watermark */}
       <div className="pt-8 text-center text-xs font-mono text-zinc-400 border-t border-zinc-900 mt-8">
         Deterministic Anti-Hallucination Architecture &bull; 100% Verified Profile Evidence
       </div>

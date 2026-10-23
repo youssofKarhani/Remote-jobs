@@ -68,7 +68,7 @@ export function TargetStep({ initialValue, onComplete }: TargetStepProps) {
           What is your target role?
         </h2>
         <p className="text-sm md:text-base text-zinc-400 font-light max-w-lg mx-auto">
-          We will align your verified experience and score downstream opportunities specifically against this objective.
+          We will align your verified experience to curate tailored applications specifically for this domain.
         </p>
       </div>
 
@@ -142,7 +142,7 @@ export function TargetStep({ initialValue, onComplete }: TargetStepProps) {
           disabled={!role.trim()}
           className="h-12 px-8 rounded-full bg-violet-600 hover:bg-violet-500 text-white font-medium shadow-[0_0_25px_rgba(139,92,246,0.35)] disabled:opacity-40 disabled:pointer-events-none transition-all duration-300 gap-2 text-sm"
         >
-          <span>Continue to Evidence Dump</span>
+          <span>Continue to CV Ingestion</span>
           <ArrowRight className="w-4 h-4" />
         </Button>
       </div>
