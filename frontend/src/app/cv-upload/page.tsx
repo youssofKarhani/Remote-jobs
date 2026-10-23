@@ -82,7 +82,6 @@ export default function CVUploadPage() {
         certificationsCount: summary.certifications_extracted,
       });
     } catch (err: any) {
-      // In offline / unauthenticated dev mode, provide graceful extraction fallback
       console.error("Extraction error:", err);
       setErrorMessage(err.message || "Failed to process resume. Please try again.");
     } finally {
@@ -129,15 +128,15 @@ export default function CVUploadPage() {
         </Card>
       )}
 
-      {/* Intent-First Guided Onboarding Callout */}
+      {/* Guided Onboarding Callout */}
       <div className="p-4 rounded-2xl border border-violet-500/30 bg-violet-950/20 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-violet-950/80 border border-violet-800/40 text-violet-400">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-zinc-100">Intent-First Guided Flow Available</h4>
-            <p className="text-xs text-zinc-400">Discover target roles, deduplicate multiple resumes, and calibrate skill metrics step-by-step.</p>
+            <h4 className="text-sm font-semibold text-zinc-100">Guided Onboarding Flow Available</h4>
+            <p className="text-xs text-zinc-400">Set your target role and initialize your Evidence Bank in a streamlined 3-step setup.</p>
           </div>
         </div>
         <Link href="/onboarding">
@@ -263,16 +262,24 @@ export default function CVUploadPage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between border-t pt-4">
+          <CardFooter className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t pt-4">
             <Button variant="outline" onClick={() => setExtractionResult(null)}>
               Upload Another
             </Button>
-            <Link href="/profile">
-              <Button className="gap-2">
-                Review & Verify Evidence Bank
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/profile">
+                <Button variant="outline" className="border-zinc-800 text-xs gap-1.5">
+                  Review Evidence Bank
+                </Button>
+              </Link>
+              <Link href="/jobs">
+                <Button className="bg-violet-600 hover:bg-violet-500 text-white text-xs gap-1.5 shadow-md shadow-violet-600/30">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Explore Jobs &amp; Curate
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </Link>
+            </div>
           </CardFooter>
         </Card>
       )}
