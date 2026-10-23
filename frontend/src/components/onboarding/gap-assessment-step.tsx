@@ -70,10 +70,6 @@ export function GapAssessmentStep({
     }, 70);
   };
 
-  const handleFillSample = () => {
-    setUserThought("deployed daily to aws using github actions with zero downtime");
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -180,13 +176,6 @@ export function GapAssessmentStep({
               <label htmlFor="gap-input" className="text-xs font-mono text-zinc-300 uppercase tracking-wider">
                 What was the deployment frequency?
               </label>
-              <button
-                type="button"
-                onClick={handleFillSample}
-                className="text-[11px] font-mono text-violet-400 hover:text-violet-300 underline underline-offset-2"
-              >
-                Insert sample thought
-              </button>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
