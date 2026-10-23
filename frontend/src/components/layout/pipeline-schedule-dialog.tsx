@@ -26,6 +26,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "@/components/auth/auth-dialog";
 import { profileApi, preferencesApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export const DAILY_RUN_UTC_HOUR = 6;
 export const DAILY_RUN_UTC_MINUTE = 0;
@@ -80,7 +81,17 @@ interface MissingItem {
   icon: "file" | "shield" | "sliders";
 }
 
-export function PipelineScheduleDialog() {
+interface PipelineScheduleDialogProps {
+  className?: string;
+  triggerLabel?: string;
+  showPrefix?: boolean;
+}
+
+export function PipelineScheduleDialog({
+  className,
+  triggerLabel,
+  showPrefix = false,
+}: PipelineScheduleDialogProps = {}) {
   const { user, isAuthenticated, loginAsDemo } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
@@ -250,13 +261,15 @@ export function PipelineScheduleDialog() {
           <button
             type="button"
             aria-label="View AI Pipeline Timetable and Cutoff"
-            className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer shadow-sm select-none ${
+            className={cn(
+              "hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-mono whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer shadow-sm select-none",
               timeState.isRunning
                 ? "bg-violet-950/60 border border-violet-700/60 text-violet-300 hover:bg-violet-900/60"
                 : isUrgent
                 ? "bg-amber-950/50 border border-amber-700/50 text-amber-300 hover:bg-amber-900/50"
-                : "bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-900/40 hover:border-emerald-700/60"
-            }`}
+                : "bg-emerald-950/40 border border-emerald-800/40 text-emerald-400 hover:bg-emerald-900/40 hover:border-emerald-700/60",
+              className
+            )}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full shrink-0 ${
@@ -270,9 +283,15 @@ export function PipelineScheduleDialog() {
             <Clock className="h-3 w-3 opacity-80 shrink-0" />
             {mounted && timeState.isRunning ? (
               <span>Pipeline Running...</span>
+            ) : triggerLabel ? (
+              <span>{triggerLabel}</span>
             ) : (
               <span>
-                <span className="hidden xl:inline">Next Run: </span>
+                {showPrefix ? (
+                  <span>Next Run: </span>
+                ) : (
+                  <span className="hidden 2xl:inline">Next Run: </span>
+                )}
                 {getBadgeTime()}
               </span>
             )}
