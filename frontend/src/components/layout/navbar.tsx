@@ -88,7 +88,7 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 text-sm font-medium">
+          <nav className="hidden lg:flex items-center gap-1 xl:gap-1.5 text-sm font-medium shrink-0">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
@@ -103,7 +103,7 @@ export function Navbar() {
                       : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
                   )}
                 >
-                  <Icon className={cn("h-3.5 w-3.5 shrink-0", isActive ? "text-violet-400" : "text-zinc-500")} />
+                  <Icon className={cn("h-3.5 w-3.5 shrink-0 hidden xl:block", isActive ? "text-violet-400" : "text-zinc-500")} />
                   <span className="hidden 2xl:inline">{item.label}</span>
                   <span className="2xl:hidden">{item.shortLabel}</span>
                 </Link>
