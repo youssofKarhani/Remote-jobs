@@ -884,8 +884,14 @@ class DefaultAIService:
             if item.get("stable_id")
         ]
 
-        evidence_block = (
+        # [HIDDEN:EVIDENCE_VERIFICATION]
+        lead_evidence = (
             "Here are verified highlights from my engineering track record that directly support your objectives:\n\n"
+            if getattr(settings, "FEATURE_EVIDENCE_VERIFICATION", False)
+            else "Here are highlights from my engineering track record that directly support your objectives:\n\n"
+        )
+        evidence_block = (
+            lead_evidence
             + "\n".join(evidence_snippets[:4])
             if evidence_snippets
             else "My track record reflects consistent ownership of core software systems and reliable delivery."

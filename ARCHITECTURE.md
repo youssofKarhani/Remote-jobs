@@ -10,13 +10,16 @@ The public product should:
 - Use AI for semantic pre-screening.
 - Perform deeper candidate-job compatibility assessment.
 - Surface strong matches with explainable reasoning.
-- Tailor CVs by selecting only verified candidate evidence.
-- Generate evidence-grounded cover letters.
+- Tailor CVs by selecting strictly from candidate profile records.
+- Generate factually grounded cover letters.
 - Track applications.
 - Run most expensive work asynchronously.
 
 **The central product principle is:**
-> LLMs may decide which verified evidence is relevant. They may not decide what evidence exists.
+> LLMs may decide which candidate records are relevant. They may not decide what records exist.
+
+> [!NOTE]
+> **Dormant Credential Verification Notice:** The platform's initial in-house self-verification flow is intentionally dormant behind feature flags while preparing integration with an established, accredited third-party verification partner. See [`docs/HIDDEN_FEATURES/evidence-verification.md`](docs/HIDDEN_FEATURES/evidence-verification.md) for architecture, dormant endpoints, and reactivation instructions.
 
 ---
 
@@ -650,12 +653,12 @@ Do not prioritize: Kubernetes, Premature microservices, Automatic job submission
 ---
 
 ## 36. CV Tailoring Contract Example
-No generative model is involved in document rendering. Only verified IDs are passed through to the backend for lookup and rendering.
+No generative model is involved in document rendering. Only validated record IDs are passed through to the backend for lookup and rendering.
 
 ---
 
 ## 37. Definition of Success
-Users have reusable verified professional profiles. Jobs are continuously ingested and deduplicated. Cheap filters remove obvious mismatches. Relevant jobs receive explainable structured assessments. Strong matches are surfaced automatically. Tailored CVs are built only from verified candidate evidence. LLMs cannot invent CV experience by design. 
+Users have reusable verified professional profiles. Jobs are continuously ingested and deduplicated. Cheap filters remove obvious mismatches. Relevant jobs receive explainable structured assessments. Strong matches are surfaced automatically. Tailored CVs are built only from immutable candidate records. LLMs cannot invent CV experience by design. 
 
 ---
 

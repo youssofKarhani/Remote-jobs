@@ -3,6 +3,7 @@
 import React from "react";
 import { ShieldCheck, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { vcopy } from "@/lib/verification-copy";
 
 export function CoreGuaranteeBanner() {
   return (
@@ -30,7 +31,7 @@ export function CoreGuaranteeBanner() {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-zinc-400 font-sans">
           <span className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Verified Set Inclusion
+            {vcopy("visual.guaranteeBanner")}
           </span>
           <span className="text-zinc-700 hidden sm:inline">&bull;</span>
           <span className="flex items-center gap-1.5">

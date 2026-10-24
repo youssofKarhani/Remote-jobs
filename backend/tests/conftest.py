@@ -141,6 +141,8 @@ def client(db_session: Session) -> Generator:
 @pytest.fixture(autouse=True)
 def configure_test_ai(monkeypatch):
     """Ensure tests run lightning fast by default using mock/deterministic heuristic provider."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "FEATURE_EVIDENCE_VERIFICATION", True)
     if not os.getenv("TEST_LIVE_AI"):
         from app.integrations.llm_ai_service import ai_service
         monkeypatch.setattr(ai_service, "provider", "mock")

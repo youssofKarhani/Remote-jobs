@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { tailoringApi } from "@/lib/api";
+import { FEATURES } from "@/lib/features";
+import { vcopy } from "@/lib/verification-copy";
 import { FileDown, FileText, CheckCircle2, Loader2, Sparkles, AlertCircle, ShieldCheck } from "lucide-react";
 
 interface TailorCVModalProps {
@@ -74,7 +76,7 @@ export function TailorCVModal({
             </DialogTitle>
           </div>
           <DialogDescription className="text-xs text-zinc-400">
-            Tailor your verified Evidence Bank into a production Word (.docx) document optimized for{" "}
+            {vcopy("tailor.dialogSubtitle")}{" "}
             <span className="text-zinc-200 font-medium">{jobTitle}</span> at{" "}
             <span className="text-zinc-200 font-medium">{companyName}</span>.
           </DialogDescription>
@@ -167,7 +169,7 @@ export function TailorCVModal({
             <div className="p-3 rounded-lg bg-zinc-900/80 border border-zinc-800 text-[11px] text-zinc-400 flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
               <span>
-                Zero Hallucination Guarantee: All statements are sourced verbatim from your verified Evidence Bank.
+                {vcopy("tailor.zeroHallucination")}
               </span>
             </div>
           </div>
@@ -180,7 +182,7 @@ export function TailorCVModal({
               <div className="space-y-1">
                 <h4 className="text-sm font-semibold text-zinc-100">Tailored CV Generated Successfully</h4>
                 <p className="text-xs text-zinc-400 max-w-sm mx-auto">
-                  Your customized .docx resume has been rendered using verified evidence points tailored to {jobTitle}.
+                  {vcopy("tailor.renderedSuccess")} {jobTitle}.
                 </p>
               </div>
 
@@ -188,22 +190,25 @@ export function TailorCVModal({
                 <Badge variant="outline" className="text-xs font-mono text-zinc-300">
                   Format: {generatedDoc.format?.toUpperCase() || "DOCX"}
                 </Badge>
-                {generatedDoc.verification_status === "verified" ? (
-                  <Badge variant="outline" className="text-xs font-mono text-emerald-400 border-emerald-800 bg-emerald-950/40">
-                    Partner-Verified ✓
-                  </Badge>
-                ) : generatedDoc.verification_status === "partially_verified" ? (
-                  <Badge variant="outline" className="text-xs font-mono text-amber-400 border-amber-800 bg-amber-950/40">
-                    Partially Verified
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="text-xs font-mono text-zinc-400 border-zinc-800 bg-zinc-900/40">
-                    Standard Export
-                  </Badge>
+                {/* [HIDDEN:EVIDENCE_VERIFICATION] */}
+                {FEATURES.evidenceVerification && (
+                  generatedDoc.verification_status === "verified" ? (
+                    <Badge variant="outline" className="text-xs font-mono text-emerald-400 border-emerald-800 bg-emerald-950/40">
+                      Partner-Verified ✓
+                    </Badge>
+                  ) : generatedDoc.verification_status === "partially_verified" ? (
+                    <Badge variant="outline" className="text-xs font-mono text-amber-400 border-amber-800 bg-amber-950/40">
+                      Partially Verified
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs font-mono text-zinc-400 border-zinc-800 bg-zinc-900/40">
+                      Standard Export
+                    </Badge>
+                  )
                 )}
                 {generatedDoc.selected_evidence_ids && (
                   <Badge variant="secondary" className="text-xs font-mono text-emerald-400 bg-emerald-950/50">
-                    {generatedDoc.selected_evidence_ids.length} Evidence Bullets Grounded
+                    {generatedDoc.selected_evidence_ids.length} {vcopy("tailor.bulletsGrounded")}
                   </Badge>
                 )}
               </div>

@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ShieldCheck, Database, Sliders, Cpu, FileCheck2, ArrowRight, Layers } from "lucide-react";
 import Link from "next/link";
+import { vcopy } from "@/lib/verification-copy";
 
 interface ArchitectureDialogProps {
   children?: React.ReactNode;
@@ -64,10 +65,10 @@ export function ArchitectureDialog({ children }: ArchitectureDialogProps) {
             <div className="p-4 rounded-xl bg-zinc-900/60 border border-zinc-800 space-y-2">
               <div className="flex items-center gap-2 text-zinc-200 font-semibold text-sm">
                 <Database className="h-4 w-4 text-violet-400" />
-                1. Canonical Evidence Bank
+                {vcopy("arch.stage1Title")}
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Raw resumes are decomposed into immutable data points assigned permanent verification IDs. Only verified items from your past experience can be used in downstream applications.
+                {vcopy("arch.stage1Body")}
               </p>
             </div>
 
@@ -87,7 +88,7 @@ export function ArchitectureDialog({ children }: ArchitectureDialogProps) {
                 3. Two-Stage Compatibility Engine
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Stage 1 executes high-recall pre-screening. Surviving top candidate positions undergo multi-dimensional deep assessment with explainable, verifiable match scores.
+                Stage 1 executes high-recall pre-screening. Surviving top candidate positions undergo multi-dimensional deep assessment with {vcopy("arch.stage2Scores")}
               </p>
             </div>
 
@@ -97,7 +98,7 @@ export function ArchitectureDialog({ children }: ArchitectureDialogProps) {
                 4. Mathematical Set Inclusion Gate
               </div>
               <p className="text-xs text-zinc-400 leading-relaxed">
-                Before document synthesis, a strict mathematical proof guarantees that every single claim in your tailored CV is an exact subset of your verified profile facts.
+                {vcopy("arch.stage3Proof")}
               </p>
             </div>
           </div>
@@ -105,12 +106,12 @@ export function ArchitectureDialog({ children }: ArchitectureDialogProps) {
           {/* Canonical Profile Elements Callout */}
           <div className="p-4 rounded-xl bg-zinc-900/40 border border-zinc-800/80 font-mono text-xs space-y-2">
             <span className="text-zinc-400 text-[11px] uppercase tracking-wider font-semibold block">
-              Immutable Verified Data Store
+              {vcopy("arch.dataStoreLabel")}
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-zinc-300">
               <div className="p-1.5 bg-zinc-950 rounded border border-zinc-800/60 text-violet-300">Profiles</div>
               <div className="p-1.5 bg-zinc-950 rounded border border-zinc-800/60 text-violet-300">Experiences</div>
-              <div className="p-1.5 bg-zinc-950 rounded border border-zinc-800/60 text-violet-300">Verified Bullets</div>
+              <div className="p-1.5 bg-zinc-950 rounded border border-zinc-800/60 text-violet-300">{vcopy("arch.bulletsLabel")}</div>
               <div className="p-1.5 bg-zinc-950 rounded border border-zinc-800/60 text-purple-300">Role Variants</div>
               <div className="p-1.5 bg-zinc-950 rounded border border-zinc-800/60 text-purple-300">Canonical Skills</div>
               <div className="p-1.5 bg-zinc-950 rounded border border-zinc-800/60 text-purple-300">Projects</div>

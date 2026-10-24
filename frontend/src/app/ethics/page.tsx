@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPageShell } from "@/components/legal/legal-page-shell";
+import { vcopy } from "@/lib/verification-copy";
 
 export const metadata: Metadata = {
   title: "Ethik & EU AI Act Konformität | FindJobFit",
@@ -40,7 +41,7 @@ export default function EthicsPage() {
               3. Data Integrity &amp; Factual Grounding
             </h2>
             <p className="text-zinc-400">
-              FindJobFit enforces strict factual boundaries. Tailored resumes and cover letters are constructed solely from verified evidence and career history explicitly provided by the user. The platform does not invent credentials, fabricate dates, or generate fictitious claims.
+              {vcopy("ethics.tailoredBoundary")}
             </p>
           </section>
 
@@ -49,7 +50,7 @@ export default function EthicsPage() {
               4. Non-Discrimination &amp; Objective Evaluation
             </h2>
             <p className="text-zinc-400">
-              The matching algorithm evaluates jobs exclusively against objective parameters, such as documented technical skills, verified work experience, and user-defined location preferences. Characteristics protected under the German General Equal Treatment Act (AGG)&mdash;including gender, age, origin, and religion&mdash;are strictly excluded from the matching logic.
+              {vcopy("ethics.objectiveEvaluation")}
             </p>
           </section>
 

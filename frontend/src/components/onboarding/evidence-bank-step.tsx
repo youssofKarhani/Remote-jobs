@@ -18,6 +18,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { vcopy } from "@/lib/verification-copy";
 
 export interface ExtractionSummaryData {
   experiencesCount: number;
@@ -58,7 +59,7 @@ export function EvidenceBankStep({
       bg: "bg-blue-950/20",
     },
     {
-      label: "Verified Achievements",
+      label: vcopy("onboarding.achievementsLabel"),
       value: summary.bulletsCount || 0,
       icon: FileCheck2,
       color: "text-emerald-400",
@@ -95,7 +96,7 @@ export function EvidenceBankStep({
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-mono font-medium bg-emerald-950/40 border border-emerald-800/40 text-emerald-300">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Step 03 &bull; Candidate Evidence Bank Ready</span>
+          <span>{vcopy("onboarding.bankReady")}</span>
         </div>
 
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-light tracking-tight text-zinc-100">
@@ -104,7 +105,7 @@ export function EvidenceBankStep({
 
         <p className="text-sm md:text-base text-zinc-400 font-light max-w-2xl mx-auto leading-relaxed">
           Targeting <span className="text-zinc-200 font-medium">{targetRole || "Software Engineer"}</span>. 
-          Your raw resume has been deconstructed into verified, immutable facts ready to curate applications on demand.
+          {vcopy("onboarding.bankSubtitle")}
         </p>
       </div>
 
@@ -119,7 +120,7 @@ export function EvidenceBankStep({
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-mono uppercase tracking-wider text-zinc-300">
-                Verified Records Ingested
+                {vcopy("onboarding.recordsIngested")}
               </span>
             </div>
             {summary.sourceFilename && (
@@ -168,7 +169,7 @@ export function EvidenceBankStep({
             </div>
           </div>
           <p className="text-xs text-zinc-300 leading-relaxed">
-            When you select any vacancy in the Jobs Feed, our engine extracts the vacancy&apos;s exact technical requirements and matches them against your {totalVerifiedEntities > 0 ? `${totalVerifiedEntities} verified data points` : "Evidence Bank"}. You can generate a tailored Word (.docx) CV and personalized cover letter with <strong>0% hallucination guarantee</strong> in seconds.
+            When you select any vacancy in the Jobs Feed, our engine extracts the vacancy&apos;s exact technical requirements and matches them against your {totalVerifiedEntities > 0 ? `${totalVerifiedEntities} career data points` : vcopy("bank.name")}. You can generate a tailored Word (.docx) CV and personalized cover letter with <strong>0% hallucination guarantee</strong> in seconds.
           </p>
         </div>
 
@@ -192,7 +193,7 @@ export function EvidenceBankStep({
               className="w-full sm:w-auto h-12 px-6 rounded-full border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs sm:text-sm transition-colors gap-2"
             >
               <FileText className="h-4 w-4 text-zinc-400" />
-              <span>Review Evidence Bank</span>
+              <span>{vcopy("onboarding.reviewBank")}</span>
             </Button>
           </Link>
 
@@ -220,7 +221,7 @@ export function EvidenceBankStep({
           <span>Upload Another CV or Document</span>
         </button>
         <span className="text-zinc-400">
-          Canonical Evidence &bull; Zero Hallucination
+          {vcopy("onboarding.canonicalTag")}
         </span>
       </div>
     </motion.div>

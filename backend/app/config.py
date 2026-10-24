@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     AWS_INFERENCE_ENDPOINT: Optional[str] = None
     AWS_WAKE_ENDPOINT: Optional[str] = "https://rc2npu70vc.execute-api.eu-north-1.amazonaws.com/wake"
 
+    # [HIDDEN:EVIDENCE_VERIFICATION] Dormant until verification partner is integrated.
+    FEATURE_EVIDENCE_VERIFICATION: bool = False
+
     # CORS Settings
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",

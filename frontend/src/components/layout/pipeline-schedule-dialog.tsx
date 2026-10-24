@@ -26,6 +26,8 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "@/components/auth/auth-dialog";
 import { profileApi, preferencesApi } from "@/lib/api";
+import { FEATURES } from "@/lib/features";
+import { vcopy } from "@/lib/verification-copy";
 import { cn } from "@/lib/utils";
 
 export const DAILY_RUN_UTC_HOUR = 6;
@@ -165,14 +167,14 @@ export function PipelineScheduleDialog({
         if (totalItems === 0) {
           items.push({
             id: "missing-cv",
-            title: "No CV evidence uploaded yet",
+            title: vcopy("schedule.noEvidenceTitle"),
             description: "Upload your resume so the AI can extract skills and experience.",
             href: "/cv-upload",
             actionText: "Upload CV",
             severity: "warning",
             icon: "file",
           });
-        } else if (unverifiedTotal > 0) {
+        } else if (FEATURES.evidenceVerification && unverifiedTotal > 0) {
           items.push({
             id: "unverified-evidence",
             title: `${unverifiedTotal} unverified item${unverifiedTotal > 1 ? "s" : ""} (Standard Export)`,
@@ -187,7 +189,7 @@ export function PipelineScheduleDialog({
         items.push({
           id: "missing-cv",
           title: "Profile not found",
-          description: "Upload a CV to initialize your Evidence Bank before the batch.",
+          description: vcopy("schedule.noEvidenceDesc"),
           href: "/cv-upload",
           actionText: "Upload CV",
           severity: "warning",
@@ -437,7 +439,7 @@ export function PipelineScheduleDialog({
                       Sign in to audit what&apos;s missing
                     </h4>
                     <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Connect your account before the 06:00 UTC batch so our AI can check your evidence bank, flag missing metrics, and recommend role adjustments.
+                      {vcopy("schedule.auditRecommend")}
                     </p>
                   </div>
                 </div>
@@ -445,7 +447,7 @@ export function PipelineScheduleDialog({
                 <div className="grid grid-cols-2 gap-2 text-[10px] text-zinc-300 font-mono pt-1 border-t border-zinc-800/60">
                   <div className="flex items-center gap-1.5 text-zinc-400">
                     <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
-                    <span>Evidence audit</span>
+                    <span>{vcopy("schedule.evidenceAudit")}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-zinc-400">
                     <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
@@ -504,7 +506,7 @@ export function PipelineScheduleDialog({
 
                 {readinessLoading ? (
                   <div className="p-4 rounded-xl border border-zinc-800 bg-zinc-900/30 text-center text-xs text-zinc-400">
-                    Checking evidence bank & preferences...
+                    {vcopy("schedule.checkingBank")}
                   </div>
                 ) : missingItems.length > 0 ? (
                   <div className="space-y-2">
@@ -554,7 +556,7 @@ export function PipelineScheduleDialog({
                       All Systems Ready for Batch
                     </div>
                     <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Your evidence items ({verifiedCount} verified) and target role preferences are primed. The AI will process fresh jobs at 06:00 UTC.
+                      Your profile records {FEATURES.evidenceVerification ? `(${verifiedCount} verified) ` : ""}and target role preferences are primed. The AI will process fresh jobs at 06:00 UTC.
                     </p>
                   </div>
                 )}

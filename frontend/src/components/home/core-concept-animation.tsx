@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, CheckCircle2, Briefcase, Wrench, FolderGit2, Cpu } from "lucide-react";
+import { vcopy } from "@/lib/verification-copy";
 
 export function CoreConceptAnimation() {
   // Loop cycle states: 0 = Docs slide in, 1 = Processing in node, 2 = Uniform blocks emerge, 3 = Rest / loop reset
@@ -23,9 +24,9 @@ export function CoreConceptAnimation() {
   ];
 
   const uniformBlocks = [
-    { label: "Experience", count: "3 Verified Roles", icon: Briefcase, tag: "Verified" },
-    { label: "Skills", count: "18 Canonical Tags", icon: Wrench, tag: "Verified" },
-    { label: "Projects", count: "4 Deconstructed Builds", icon: FolderGit2, tag: "Verified" },
+    { label: "Experience", count: vcopy("visual.rolesCount"), icon: Briefcase, tag: vcopy("visual.rolesTag") },
+    { label: "Skills", count: "18 Canonical Tags", icon: Wrench, tag: vcopy("visual.skillsTag") },
+    { label: "Projects", count: vcopy("visual.buildsCount"), icon: FolderGit2, tag: vcopy("visual.buildsTag") },
   ];
 
   return (
@@ -139,7 +140,7 @@ export function CoreConceptAnimation() {
             <div className="text-xs font-medium text-zinc-400 mb-1 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                Verified Evidence Bank
+                {vcopy("visual.bankTitle")}
               </div>
               <span className="text-[10px] font-mono text-emerald-400">100% Fact-Checked</span>
             </div>
@@ -183,7 +184,7 @@ export function CoreConceptAnimation() {
         {/* Bottom Caption Banner */}
         <div className="mt-8 pt-6 border-t border-zinc-800/80 text-center">
           <p className="text-xs sm:text-sm text-zinc-300 font-sans tracking-wide">
-            &ldquo;Feed the engine everything. We deduplicate your history into one verified, canonical profile.&rdquo;
+            {vcopy("visual.bankQuote")}
           </p>
         </div>
 

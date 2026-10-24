@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { profileApi } from "@/lib/api";
+import { FEATURES } from "@/lib/features";
 import { Loader2, Plus, Edit2, Trash2 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -42,13 +43,13 @@ export function AddBulletDialog({
       await profileApi.addEvidence({
         experience_record_id: experienceId,
         raw_text: text.trim(),
-        is_verified: true,
+        ...(FEATURES.evidenceVerification ? { is_verified: true } : {}),
       });
       setText("");
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err?.message || "Failed to add evidence bullet");
+      setError(err?.message || "Failed to add achievement bullet");
     } finally {
       setIsSubmitting(false);
     }
@@ -120,7 +121,7 @@ export function EditBulletDialog({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err?.message || "Failed to update evidence bullet");
+      setError(err?.message || "Failed to update achievement bullet");
     } finally {
       setIsSubmitting(false);
     }
@@ -130,7 +131,7 @@ export function EditBulletDialog({
     <Dialog open={isOpen} onOpenChange={(open) => (!open ? onClose() : null)}>
       <DialogContent className="sm:max-w-[500px] glass-card border-zinc-800 bg-zinc-950/95 text-zinc-100">
         <DialogHeader>
-          <DialogTitle className="text-base text-zinc-100">Edit Evidence Bullet</DialogTitle>
+          <DialogTitle className="text-base text-zinc-100">Edit Achievement Bullet</DialogTitle>
           <DialogDescription className="text-xs text-zinc-400">
             Update the bullet content while preserving stable ID provenance.
           </DialogDescription>
@@ -297,7 +298,7 @@ export function AddSkillDialog({
       await profileApi.createSkill({
         name: name.trim(),
         category,
-        is_verified: true,
+        ...(FEATURES.evidenceVerification ? { is_verified: true } : {}),
       });
       setName("");
       onSuccess();
@@ -376,7 +377,7 @@ export function AddProjectDialog({
         title: title.trim(),
         description: description.trim(),
         technologies,
-        is_verified: true,
+        ...(FEATURES.evidenceVerification ? { is_verified: true } : {}),
       });
       setTitle("");
       setDescription("");
@@ -472,7 +473,7 @@ export function AddEducationDialog({
         institution: institution.trim(),
         degree: degree.trim(),
         field_of_study: fieldOfStudy.trim(),
-        is_verified: true,
+        ...(FEATURES.evidenceVerification ? { is_verified: true } : {}),
       });
       setInstitution("");
       setDegree("");
@@ -567,7 +568,7 @@ export function AddCertificationDialog({
       await profileApi.createCertification({
         name: name.trim(),
         issuing_organization: org.trim(),
-        is_verified: true,
+        ...(FEATURES.evidenceVerification ? { is_verified: true } : {}),
       });
       setName("");
       setOrg("");

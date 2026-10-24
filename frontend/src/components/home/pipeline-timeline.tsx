@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Search
 } from "lucide-react";
+import { vcopy } from "@/lib/verification-copy";
 
 interface StepData {
   id: number;
@@ -27,7 +28,7 @@ const STEPS: StepData[] = [
   {
     id: 1,
     label: "Extract",
-    copy: "Your base CVs are deconstructed into verified, reusable data points.",
+    copy: vcopy("timeline.step1Copy"),
     badge: "Step 01",
   },
   {
@@ -45,7 +46,7 @@ const STEPS: StepData[] = [
   {
     id: 4,
     label: "Generate",
-    copy: "We select the perfect verified blocks to generate a tailored CV and cover letter with zero hallucinations.",
+    copy: vcopy("timeline.step2Copy"),
     badge: "Step 04",
   },
 ];
@@ -159,7 +160,7 @@ export function PipelineTimeline() {
           Four steps. <span className="font-medium text-white">Zero hallucinations.</span>
         </h2>
         <p className="text-sm text-zinc-400 font-light leading-relaxed">
-          Scroll through the deterministic pipeline powering verified job applications.
+          {vcopy("timeline.subtitle")}
         </p>
       </div>
 
@@ -313,7 +314,7 @@ function ExtractVisual({ isActive }: { isActive: boolean }) {
         </div>
         <div className="text-left space-y-0.5">
           <div className="text-[11px] font-mono font-bold text-indigo-300">EXP_001</div>
-          <div className="text-[9px] text-zinc-400 font-sans">Verified Fact</div>
+          <div className="text-[9px] text-zinc-400 font-sans">{vcopy("timeline.factLabel")}</div>
         </div>
       </div>
     </div>
@@ -434,11 +435,11 @@ function GenerateVisual({ isActive }: { isActive: boolean }) {
         {/* Reassembled Puzzle Blocks */}
         <div className="space-y-1.5 py-1">
           <div className="p-1.5 rounded bg-zinc-800/60 border border-zinc-700/50 flex items-center justify-between">
-            <span className="text-[9px] font-mono text-indigo-300">[EXP_001] Verified</span>
+            <span className="text-[9px] font-mono text-indigo-300">{vcopy("timeline.expBadge")}</span>
             <Check className="w-2.5 h-2.5 text-emerald-400" />
           </div>
           <div className="p-1.5 rounded bg-zinc-800/60 border border-zinc-700/50 flex items-center justify-between">
-            <span className="text-[9px] font-mono text-purple-300">[SKILL_001] Verified</span>
+            <span className="text-[9px] font-mono text-purple-300">{vcopy("timeline.skillBadge")}</span>
             <Check className="w-2.5 h-2.5 text-emerald-400" />
           </div>
         </div>

@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Sparkles } from "lucide-react";
 import { TargetStep } from "@/components/onboarding/target-step";
 import { EvidenceStep } from "@/components/onboarding/evidence-step";
 import { EvidenceBankStep, ExtractionSummaryData } from "@/components/onboarding/evidence-bank-step";
+import { vcopy } from "@/lib/verification-copy";
 
 export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -23,7 +24,7 @@ export default function OnboardingPage() {
   const STEPS_META = [
     { id: 1, label: "Target Role" },
     { id: 2, label: "CV Ingestion" },
-    { id: 3, label: "Evidence Bank" },
+    { id: 3, label: vcopy("onboarding.step3Label") },
   ];
 
   return (
@@ -89,7 +90,7 @@ export default function OnboardingPage() {
 
         <div className="hidden md:flex items-center gap-1.5 text-[11px] font-mono text-zinc-400">
           <Sparkles className="w-3 h-3 text-violet-400" />
-          <span>Verified Ingestion</span>
+          <span>{vcopy("onboarding.verifiedIngestion")}</span>
         </div>
       </div>
 
@@ -132,7 +133,7 @@ export default function OnboardingPage() {
 
       {/* Bottom System Integrity Watermark */}
       <div className="pt-8 text-center text-xs font-mono text-zinc-400 border-t border-zinc-900 mt-8">
-        Deterministic Anti-Hallucination Architecture &bull; 100% Verified Profile Evidence
+        {vcopy("onboarding.footerBanner")}
       </div>
     </div>
   );

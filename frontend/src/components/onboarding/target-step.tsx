@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, CornerDownLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { vcopy } from "@/lib/verification-copy";
 
 interface TargetStepProps {
   initialValue: string;
@@ -68,7 +69,7 @@ export function TargetStep({ initialValue, onComplete }: TargetStepProps) {
           What is your target role?
         </h2>
         <p className="text-sm md:text-base text-zinc-400 font-light max-w-lg mx-auto">
-          We will align your verified experience to curate tailored applications specifically for this domain.
+          {vcopy("onboarding.targetAlign")}
         </p>
       </div>
 

@@ -30,6 +30,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { profileApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "@/components/auth/auth-dialog";
+import { FEATURES } from "@/lib/features";
+import { vcopy } from "@/lib/verification-copy";
 import {
   AddBulletDialog,
   EditBulletDialog,
@@ -251,20 +253,23 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <PageHeader
-        title="Candidate Evidence Bank"
-        subtitle="Manage your canonical profile and immutable evidence items (stable IDs). Items can be used immediately for standard exports or verified for the Partner-Verified trust tier."
+        title={vcopy("profile.pageTitle")}
+        subtitle={vcopy("profile.pageSubtitle")}
       >
         <div className="flex items-center gap-3">
-          {totalItems > 0 && (
+          {/* [HIDDEN:EVIDENCE_VERIFICATION] */}
+          {FEATURES.evidenceVerification && totalItems > 0 && (
             <Button size="sm" variant="outline" onClick={handleVerifyAll} className="gap-1.5 text-xs border-zinc-800 bg-zinc-900 text-zinc-300">
               <CheckCircle2 className="h-4 w-4 text-emerald-400" />
               Verify All Evidence
             </Button>
           )}
-          <Badge variant="success" className="gap-1.5 py-1 px-3 text-xs bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
-            <ShieldCheck className="h-4 w-4" />
-            {percentVerified}% Verified ({verifiedItems}/{totalItems})
-          </Badge>
+          {FEATURES.evidenceVerification && (
+            <Badge variant="success" className="gap-1.5 py-1 px-3 text-xs bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+              <ShieldCheck className="h-4 w-4" />
+              {percentVerified}% Verified ({verifiedItems}/{totalItems})
+            </Badge>
+          )}
         </div>
       </PageHeader>
 
@@ -274,9 +279,9 @@ export default function ProfilePage() {
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-zinc-200">Sign in to Access Your Evidence Bank</h3>
+            <h3 className="text-sm font-semibold text-zinc-200">{vcopy("profile.signInTitle")}</h3>
             <p className="text-xs text-zinc-400 max-w-md mx-auto">
-              Your canonical Candidate Evidence Bank stores immutable, verified experience bullets, skills, and projects with stable IDs. Sign in or initialize a demo candidate profile to view and verify evidence.
+              {vcopy("profile.signInDescription")}
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
@@ -367,7 +372,7 @@ export default function ProfilePage() {
       {isLoading ? (
         <div className="p-12 text-center text-zinc-400 flex flex-col items-center gap-2">
           <Loader2 className="h-6 w-6 animate-spin text-violet-400" />
-          <span className="text-sm font-mono">Loading Candidate Evidence Bank...</span>
+          <span className="text-sm font-mono">{vcopy("profile.loadingBank")}</span>
         </div>
       ) : totalItems === 0 ? (
         /* Empty State */
@@ -376,7 +381,7 @@ export default function ProfilePage() {
             <Database className="h-6 w-6" />
           </div>
           <div className="space-y-1 max-w-md mx-auto">
-            <h3 className="text-base font-semibold text-zinc-200">No Evidence Bank Entries Found</h3>
+            <h3 className="text-base font-semibold text-zinc-200">{vcopy("profile.emptyBank")}</h3>
             <p className="text-xs text-zinc-400 leading-relaxed">
               Upload your base CV to deconstruct your experience into canonical immutable items with stable IDs (<code className="text-violet-400 font-mono">EXP_001</code>, <code className="text-indigo-400 font-mono">SKILL_001</code>).
             </p>
@@ -467,7 +472,7 @@ export default function ProfilePage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-mono font-semibold uppercase tracking-wider text-zinc-400">
-                          Verifiable Achievement Bullets
+                          {vcopy("profile.verifiableAchievements")}
                         </span>
                         <Button
                           size="sm"
@@ -484,7 +489,7 @@ export default function ProfilePage() {
                         <div
                           key={bullet.id || bullet.stable_id}
                           className={`p-3 rounded-lg border flex items-start justify-between gap-3 text-sm transition-colors ${
-                            bullet.is_verified ? "bg-zinc-900/60 border-zinc-800" : "bg-zinc-900/30 border-zinc-800/60"
+                            FEATURES.evidenceVerification && bullet.is_verified ? "bg-zinc-900/60 border-zinc-800" : "bg-zinc-900/30 border-zinc-800/60"
                           }`}
                         >
                           <div className="space-y-1 flex-1">
@@ -492,14 +497,17 @@ export default function ProfilePage() {
                               <span className="font-mono text-xs font-bold text-violet-400 px-1.5 py-0.5 bg-violet-500/10 rounded border border-violet-500/20">
                                 {bullet.stable_id}
                               </span>
-                              {bullet.is_verified ? (
-                                <Badge variant="success" className="text-[10px] py-0 px-1.5 bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
-                                  Partner-Verified
-                                </Badge>
-                              ) : (
-                                <Badge variant="secondary" className="text-[10px] py-0 px-1.5 text-zinc-400 bg-zinc-900 border border-zinc-800">
-                                  Standard
-                                </Badge>
+                              {/* [HIDDEN:EVIDENCE_VERIFICATION] */}
+                              {FEATURES.evidenceVerification && (
+                                bullet.is_verified ? (
+                                  <Badge variant="success" className="text-[10px] py-0 px-1.5 bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+                                    Partner-Verified
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-[10px] py-0 px-1.5 text-zinc-400 bg-zinc-900 border border-zinc-800">
+                                    Standard
+                                  </Badge>
+                                )
                               )}
                             </div>
                             <p className="text-zinc-200 leading-relaxed text-xs">{bullet.raw_text || bullet.text}</p>
@@ -524,14 +532,17 @@ export default function ProfilePage() {
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant={bullet.is_verified ? "secondary" : "outline"}
-                              onClick={() => handleToggleVerifyBullet(exp.id, bullet.stable_id, bullet.is_verified)}
-                              className="text-xs h-7 px-2 border-zinc-800"
-                            >
-                              {bullet.is_verified ? "Verified ✓" : "Verify"}
-                            </Button>
+                            {/* [HIDDEN:EVIDENCE_VERIFICATION] */}
+                            {FEATURES.evidenceVerification && (
+                              <Button
+                                size="sm"
+                                variant={bullet.is_verified ? "secondary" : "outline"}
+                                onClick={() => handleToggleVerifyBullet(exp.id, bullet.stable_id, bullet.is_verified)}
+                                className="text-xs h-7 px-2 border-zinc-800"
+                              >
+                                {bullet.is_verified ? "Verified ✓" : "Verify"}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -560,7 +571,7 @@ export default function ProfilePage() {
               <CardHeader>
                 <CardTitle className="text-base text-zinc-100">Technical & Domain Skills</CardTitle>
                 <CardDescription className="text-xs text-zinc-400">
-                  Verified skills indexed with immutable stable IDs for semantic matching.
+                  {vcopy("profile.verifiedSkillsDesc")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -587,14 +598,17 @@ export default function ProfilePage() {
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Button
-                            size="sm"
-                            variant={skill.is_verified ? "ghost" : "outline"}
-                            onClick={() => handleToggleVerifySkill(skill.stable_id, skill.is_verified)}
-                            className={`h-6 px-1.5 text-xs ${skill.is_verified ? "text-emerald-400 font-bold" : "border-zinc-800"}`}
-                          >
-                            {skill.is_verified ? "✓" : "Verify"}
-                          </Button>
+                          {/* [HIDDEN:EVIDENCE_VERIFICATION] */}
+                          {FEATURES.evidenceVerification && (
+                            <Button
+                              size="sm"
+                              variant={skill.is_verified ? "ghost" : "outline"}
+                              onClick={() => handleToggleVerifySkill(skill.stable_id, skill.is_verified)}
+                              className={`h-6 px-1.5 text-xs ${skill.is_verified ? "text-emerald-400 font-bold" : "border-zinc-800"}`}
+                            >
+                              {skill.is_verified ? "✓" : "Verify"}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -632,9 +646,12 @@ export default function ProfilePage() {
                         <CardTitle className="text-base text-zinc-100">{proj.title}</CardTitle>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="success" className="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
-                          Verified
-                        </Badge>
+                        {/* [HIDDEN:EVIDENCE_VERIFICATION] */}
+                        {FEATURES.evidenceVerification && (
+                          <Badge variant="success" className="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">
+                            Verified
+                          </Badge>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -690,7 +707,10 @@ export default function ProfilePage() {
                         <CardTitle className="text-base text-zinc-100">{edu.degree} in {edu.field_of_study}</CardTitle>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="success" className="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">Verified</Badge>
+                        {/* [HIDDEN:EVIDENCE_VERIFICATION] */}
+                        {FEATURES.evidenceVerification && (
+                          <Badge variant="success" className="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">Verified</Badge>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
@@ -737,7 +757,10 @@ export default function ProfilePage() {
                         <CardTitle className="text-base text-zinc-100">{cert.name}</CardTitle>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="success" className="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">Verified</Badge>
+                        {/* [HIDDEN:EVIDENCE_VERIFICATION] */}
+                        {FEATURES.evidenceVerification && (
+                          <Badge variant="success" className="text-[10px] bg-emerald-950/60 text-emerald-400 border border-emerald-800/40">Verified</Badge>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"

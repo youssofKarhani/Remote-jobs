@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
+from app.config import settings
 from app.database import get_db
 from app.models.evidence import (
     Certification,
@@ -216,8 +217,17 @@ async def update_candidate_profile(
     )
 
 
-@router.post("/evidence/verify", response_model=EvidenceVerificationResponse)
-@router.post("/evidence/{category}/verify", response_model=EvidenceVerificationResponse)
+def require_evidence_verification_feature():
+    """[HIDDEN:EVIDENCE_VERIFICATION] Gate verification endpoints behind feature flag."""
+    if not settings.FEATURE_EVIDENCE_VERIFICATION:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Evidence verification feature is currently disabled.",
+        )
+
+
+@router.post("/evidence/verify", response_model=EvidenceVerificationResponse, dependencies=[Depends(require_evidence_verification_feature)], include_in_schema=settings.FEATURE_EVIDENCE_VERIFICATION)
+@router.post("/evidence/{category}/verify", response_model=EvidenceVerificationResponse, dependencies=[Depends(require_evidence_verification_feature)], include_in_schema=settings.FEATURE_EVIDENCE_VERIFICATION)
 async def verify_evidence_item(
     payload: EvidenceVerificationRequest,
     category: Optional[str] = None,
@@ -319,7 +329,7 @@ async def verify_evidence_item(
     )
 
 
-@router.post("/evidence/verify-all")
+@router.post("/evidence/verify-all", dependencies=[Depends(require_evidence_verification_feature)], include_in_schema=settings.FEATURE_EVIDENCE_VERIFICATION)
 async def verify_all_evidence_items(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

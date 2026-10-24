@@ -25,6 +25,7 @@ import { AuthDialog } from "@/components/auth/auth-dialog";
 import { SignOutDialog } from "@/components/auth/sign-out-dialog";
 import { Button } from "@/components/ui/button";
 import { PipelineScheduleDialog } from "./pipeline-schedule-dialog";
+import { vcopy } from "@/lib/verification-copy";
 
 interface NavItem {
   href: string;
@@ -36,7 +37,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: "/onboarding", label: "Get Started", shortLabel: "Guide", icon: Compass },
   { href: "/cv-upload", label: "CV Ingestion", shortLabel: "Upload CV", icon: FileUp },
-  { href: "/profile", label: "Evidence Bank", shortLabel: "Evidence", icon: UserIcon },
+  { href: "/profile", label: vcopy("bank.name"), shortLabel: vcopy("bank.navShort"), icon: UserIcon },
   { href: "/preferences", label: "Preferences", shortLabel: "Preferences", icon: Settings2 },
   { href: "/jobs", label: "Jobs Feed", shortLabel: "Jobs", icon: Briefcase },
   { href: "/applications", label: "ATS Pipeline", shortLabel: "Pipeline", icon: FolderKanban },

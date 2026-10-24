@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ShieldCheck, Scale, FileText, Lock } from "lucide-react";
 import { BrandIcon } from "@/components/layout/brand-icon";
+import { vcopy } from "@/lib/verification-copy";
 
 export function Footer() {
   return (
@@ -50,7 +51,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/profile" className="hover:text-zinc-200 transition-colors">
-                  Evidence Bank
+                  {vcopy("bank.name")}
                 </Link>
               </li>
               <li>
@@ -101,7 +102,7 @@ export function Footer() {
           <div className="space-y-3">
             <h4 className="text-xs font-semibold text-zinc-200 uppercase tracking-wider font-mono">Guarantee</h4>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              <strong className="text-zinc-300">Zero-Hallucination Guarantee:</strong> Artificial intelligence selects relevant credentials but never invents them. All documents are strictly derived from verified experience IDs (<code className="font-mono text-violet-400">EXP_xxx</code>).
+              <strong className="text-zinc-300">Zero-Hallucination Guarantee:</strong> {vcopy("footer.guarantee")}
             </p>
             <div className="text-[11px] text-zinc-500 font-mono pt-1">
               Location: Hesse, Germany / EU

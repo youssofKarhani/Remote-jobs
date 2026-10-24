@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { AuthProvider } from "@/lib/auth-context";
+import { vcopy } from "@/lib/verification-copy";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -18,7 +19,7 @@ const firaCode = Fira_Code({
 export const metadata: Metadata = {
   title: "FindJobFit - Deterministic AI Job Engineering",
   description:
-    "Upload your raw experience. We engineer the perfect application with zero hallucination and deterministic verifiable evidence.",
+    vcopy("meta.description"),
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },

@@ -23,6 +23,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { vcopy } from "@/lib/verification-copy";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { atsApi, tailoringApi, coverLetterApi } from "@/lib/api";
@@ -111,7 +112,7 @@ export default function ApplicationsPage() {
         setSelectedLetter({
           title,
           content:
-            "No cover letter has been generated yet for this job.\n\nTo generate an evidence-grounded cover letter, open this job posting from the Jobs Feed and select 'Cover Letter' to choose one of the 10 engineering positioning strategies.",
+            vcopy("applications.emptyCoverLetter"),
         });
       }
     } catch (err) {
@@ -119,7 +120,7 @@ export default function ApplicationsPage() {
       setSelectedLetter({
         title,
         content:
-          "No cover letter has been generated yet for this job.\n\nTo generate an evidence-grounded cover letter, open this job posting from the Jobs Feed and select 'Cover Letter' to choose one of the 10 engineering positioning strategies.",
+          vcopy("applications.emptyCoverLetter"),
       });
     }
   };

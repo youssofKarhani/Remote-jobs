@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { cvApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "@/components/auth/auth-dialog";
+import { vcopy } from "@/lib/verification-copy";
 
 export default function CVUploadPage() {
   const { isAuthenticated, loginAsDemo } = useAuth();
@@ -38,7 +39,7 @@ export default function CVUploadPage() {
 
   const handleStartExtraction = async () => {
     if (!isAuthenticated) {
-      setErrorMessage("Please sign in or use Demo Mode to extract and persist resume evidence.");
+      setErrorMessage(vcopy("cvUpload.authRequired"));
       return;
     }
     setIsProcessing(true);
@@ -61,7 +62,7 @@ export default function CVUploadPage() {
       }
 
       setProgress(85);
-      setCurrentStep("Assigning immutable stable IDs and persisting to Evidence Bank...");
+      setCurrentStep(vcopy("cvUpload.persistingStep"));
 
       const summary = res.summary || {
         experiences_extracted: 0,
@@ -93,7 +94,7 @@ export default function CVUploadPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       <PageHeader
         title="CV Ingestion & Parsing"
-        subtitle="Upload your resume (PDF/DOCX) or paste text to initialize your canonical Candidate Evidence Bank."
+        subtitle={vcopy("cvUpload.pageSubtitle")}
       />
 
       {errorMessage && (
@@ -109,9 +110,9 @@ export default function CVUploadPage() {
             <UploadCloud className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-zinc-200">Sign in to Ingest & Persist Evidence</h3>
+            <h3 className="text-sm font-semibold text-zinc-200">{vcopy("cvUpload.signInTitle")}</h3>
             <p className="text-xs text-zinc-400 max-w-md mx-auto">
-              Structured extraction transforms your raw CV into immutable, stable-identified records in your private Candidate Evidence Bank.
+              {vcopy("cvUpload.signInDescription")}
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
@@ -136,7 +137,7 @@ export default function CVUploadPage() {
           </div>
           <div>
             <h4 className="text-sm font-semibold text-zinc-100">Guided Onboarding Flow Available</h4>
-            <p className="text-xs text-zinc-400">Set your target role and initialize your Evidence Bank in a streamlined 3-step setup.</p>
+            <p className="text-xs text-zinc-400">{vcopy("cvUpload.streamlinedSetup")}</p>
           </div>
         </div>
         <Link href="/onboarding">
@@ -269,7 +270,7 @@ export default function CVUploadPage() {
             <div className="flex items-center gap-2">
               <Link href="/profile">
                 <Button variant="outline" className="border-zinc-800 text-xs gap-1.5">
-                  Review Evidence Bank
+                  {vcopy("cvUpload.reviewBankButton")}
                 </Button>
               </Link>
               <Link href="/jobs">

@@ -6,6 +6,7 @@ import { PipelineTimeline } from "@/components/home/pipeline-timeline";
 import { CoreGuaranteeBanner } from "@/components/home/core-guarantee-banner";
 import { ArchitectureDialog } from "@/components/home/architecture-dialog";
 import { FloatingPipelineSchedule } from "@/components/layout/pipeline-schedule-dialog";
+import { vcopy } from "@/lib/verification-copy";
 
 export default function HomePage() {
   return (
@@ -28,7 +29,7 @@ export default function HomePage() {
 
         {/* H2 Sub-Headline */}
         <p className="text-base sm:text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto font-sans font-normal leading-relaxed">
-          Connect your profile to our automated pipeline to discover high-match roles and generate highly tailored, verifiable applications on autopilot.
+          {vcopy("home.heroSubtitle")}
         </p>
 
         {/* CTAs */}

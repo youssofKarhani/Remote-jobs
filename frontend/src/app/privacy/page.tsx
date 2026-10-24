@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPageShell } from "@/components/legal/legal-page-shell";
+import { vcopy } from "@/lib/verification-copy";
 
 export const metadata: Metadata = {
   title: "Datenschutzerklärung (Privacy Policy) | FindJobFit",
@@ -51,7 +52,7 @@ export default function PrivacyPage() {
                 <strong className="text-zinc-200">Account Registration:</strong> When you register, we collect your email address and authentication credentials to secure your account.
               </li>
               <li>
-                <strong className="text-zinc-200">Resume &amp; Career Information:</strong> When you submit resume documents or career details, the data is processed to structure your verified experience and match you with relevant job opportunities.
+                <strong className="text-zinc-200">Resume &amp; Career Information:</strong> {vcopy("privacy.careerInfo")}
               </li>
               <li>
                 <strong className="text-zinc-200">Candidate Preferences:</strong> Defined search criteria (e.g. target roles, locations, remote options) are stored to filter job listings.
@@ -83,7 +84,7 @@ export default function PrivacyPage() {
               4. AI-Assisted Processing &amp; Control
             </h2>
             <p className="text-zinc-400">
-              FindJobFit uses machine learning models to analyze job descriptions and align them with your verified qualifications.
+              {vcopy("privacy.mlModels")}
             </p>
             <ul className="list-disc pl-5 space-y-1.5 text-zinc-400">
               <li>

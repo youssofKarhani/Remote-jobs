@@ -16,6 +16,7 @@ import { Job } from "@/types/job";
 import { matchingApi, atsApi } from "@/lib/api";
 import { TailorCVModal } from "./tailor-cv-modal";
 import { CoverLetterDrawer } from "./cover-letter-drawer";
+import { vcopy } from "@/lib/verification-copy";
 import {
   Building,
   MapPin,
@@ -175,7 +176,7 @@ export function JobDetailDialog({
                       AI Compatibility Assessment
                     </h4>
                     <p className="text-[11px] text-zinc-400">
-                      Deterministic match score evaluated against your verified Evidence Bank
+                      {vcopy("job.matchScoreTooltip")}
                     </p>
                   </div>
                 </div>

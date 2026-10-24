@@ -11,3 +11,6 @@ When working in this repository, autonomous agents must always respect the bound
 - **Frontend**: Next.js (App Router), React, Tailwind CSS, TypeScript
 - **Backend**: FastAPI, Pydantic v2, SQLAlchemy/SQLModel, Python (managed by `uv`)
 - **Database**: PostgreSQL
+
+## Dormant Features
+- **Evidence Verification**: The concept of "verified evidence" and "Evidence Bank" is intentionally hidden/dormant pending future integration with an established credential verification partner. Do not expose "verified" badges, trust tiers, or "Evidence Bank" labels in public-facing UI. Refer to `docs/HIDDEN_FEATURES/evidence-verification.md` for full context and architecture.

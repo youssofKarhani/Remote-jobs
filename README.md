@@ -8,19 +8,22 @@
 [![Package Manager - UV](https://img.shields.io/badge/uv-Fast%20Python%20Packaging-DE5FE9?style=flat&logo=astral)](https://github.com/astral-sh/uv)
 [![Tests](https://img.shields.io/badge/Tests-Passing%20(225%20tests)-2EA44F?style=flat&logo=pytest&logoColor=white)](https://pytest.org)
 
-An enterprise-grade, multi-user AI job discovery and application platform built on a **deterministic anti-hallucination architecture**. The platform ingests and deduplicates jobs across multiple sources, extracts verified candidate evidence from resumes, applies zero-cost deterministic filters, and gates all LLM operations through mathematically strict validation.
+An enterprise-grade, multi-user AI job discovery and application platform built on a **deterministic anti-hallucination architecture**. The platform ingests and deduplicates jobs across multiple sources, extracts structured candidate career records from resumes, applies zero-cost deterministic filters, and gates all LLM operations through mathematically strict validation.
 
 ---
 
 ## 💡 Core Philosophy
 
-> **"LLMs may decide which verified evidence is relevant. They may not decide what evidence exists."**
+> **"LLMs may decide which candidate records are relevant. They may not decide what records exist."**
 
 In conventional AI job tools, generative models freely hallucinate bullet points, metrics, and technical proficiencies. **RemoteJobs** solves this at the architectural layer:
-- Resumes are parsed into an **Evidence Bank** of discrete, immutable items with stable identifiers (`EXP_001`, `SKILL_001`, `PROJ_001`).
-- The candidate reviews and verifies each record.
-- When tailoring applications, AI models **only return verified IDs** (`selected_ids ⊆ allowed_ids`).
+- Resumes are parsed into discrete, immutable career items with stable identifiers (`EXP_001`, `SKILL_001`, `PROJ_001`).
+- The candidate reviews and manages their canonical career records.
+- When tailoring applications, AI models **only return allowed source IDs** (`selected_ids ⊆ allowed_ids`).
 - The backend validates selection subsets by code and retrieves exact source text from the database to render final documents.
+
+> [!NOTE]
+> **Dormant Credential Verification Notice:** An in-house self-verification flow is intentionally dormant behind feature flags while preparing integration with an established, accredited third-party verification partner. See [`docs/HIDDEN_FEATURES/evidence-verification.md`](docs/HIDDEN_FEATURES/evidence-verification.md) for architecture, dormant endpoints, and reactivation instructions.
 
 ---
 
@@ -46,11 +49,11 @@ In conventional AI job tools, generative models freely hallucinate bullet points
 
 ## ✨ Key Features
 
-### 1. Canonical Candidate Profile & Evidence Bank
-- **Atomic Evidence Ingestion**: Deconstructs candidate resumes (PDF, DOCX, Plain Text) into structured entities: Experience Records, Evidence Bullets, Categorized Skills (`programming`, `backend`, `ai_ml`, `devops`, `tools`, `soft_skill`), Certifications, Projects, and Education.
+### 1. Canonical Candidate Profile & Career Records
+- **Atomic Profile Ingestion**: Deconstructs candidate resumes (PDF, DOCX, Plain Text) into structured entities: Experience Records, Achievement Bullets, Categorized Skills (`programming`, `backend`, `ai_ml`, `devops`, `tools`, `soft_skill`), Certifications, Projects, and Education.
 - **Stable ID System**: Assigns deterministic, format-validated identifiers (`^[A-Z]{3,5}_\d{3,5}$`) such as `EXP_001`, `SKILL_001`, `PROJ_001`, `CERT_001`, and `EDU_001`.
-- **Pre-Approved Variants**: Supports verified alternate phrasing for achievements (e.g. `EXP_001_FULL`, `EXP_001_SHORT`, `EXP_001_DATA`) so the model can optimize layout without altering facts.
-- **Draft & Multi-Tier Verification Trust**: Extracted items are immediately usable for tailoring standard CV exports without requiring manual review up front. Users can selectively or bulk verify items to unlock the **Partner-Verified** trust tier (`verified`, `partially_verified`, `unverified`) for high-trust employer networks.
+- **Pre-Approved Variants**: Supports alternate phrasing for achievements (e.g. `EXP_001_FULL`, `EXP_001_SHORT`, `EXP_001_DATA`) so the model can optimize layout without altering facts.
+- **Immediate Tailoring**: Extracted items are immediately usable for tailoring standard CV exports without requiring manual review up front. Multi-tier trust verification is built into the data layer and ready for third-party partner integration.
 
 ### 2. Multi-Source Job Discovery & Normalization
 - **Job Source Abstraction**: Protocol-driven ingestion architecture (`JobSource`) decoupled from any single provider.
@@ -351,15 +354,15 @@ The backend AI Gateway defaults to a local [Ollama](https://ollama.ai/) instance
 | **Auth** | `POST` | `/api/v1/auth/login` | Authenticate and obtain JWT bearer token |
 | **Auth** | `GET` | `/api/v1/auth/me` | Fetch authenticated user profile details |
 | **CV** | `POST` | `/api/v1/cv/upload` | Upload PDF/DOCX or plain text for structured ingestion |
-| **CV** | `POST` | `/api/v1/cv/parse-text` | Ingest raw CV text directly into Evidence Bank draft |
+| **CV** | `POST` | `/api/v1/cv/parse-text` | Ingest raw CV text directly into Candidate Profile |
 | **CV** | `POST` | `/api/v1/cv/extract-async` | Trigger background structured CV extraction task |
 | **CV** | `GET` | `/api/v1/cv/extraction-status/{task_id}` | Check async CV extraction progress and state |
-| **Profile** | `GET` | `/api/v1/profile` | Retrieve candidate profile and full Evidence Bank |
+| **Profile** | `GET` | `/api/v1/profile` | Retrieve candidate profile and full record bank |
 | **Profile** | `PUT` | `/api/v1/profile` | Update profile headline, summary, and contact info |
 | **Profile** | `POST` | `/api/v1/profile/evidence` | Add a new evidence item with assigned stable ID |
 | **Profile** | `PUT` | `/api/v1/profile/evidence/{id}` | Update evidence content or pre-approved variants |
-| **Profile** | `POST` | `/api/v1/profile/evidence/{id}/verify` | Toggle verification status of an evidence item |
-| **Profile** | `POST` | `/api/v1/profile/verify-all` | Verify all profile evidence items for partner-tier qualification |
+| **Profile** | `POST` | `/api/v1/profile/evidence/{id}/verify` | Toggle verification status (dormant when flag is off) |
+| **Profile** | `POST` | `/api/v1/profile/verify-all` | Verify all profile evidence items (dormant when flag is off) |
 | **Profile** | `POST` | `/api/v1/profile/skills` | Add a new categorized skill record |
 | **Profile** | `POST` | `/api/v1/profile/validate-evidence` | Test evidence ID selection gate against allowed IDs |
 | **Preferences** | `GET` | `/api/v1/preferences` | Get deterministic candidate filtering rules |
@@ -480,7 +483,7 @@ npm run lint
   - Stable Evidence ID assignment and immutability rules.
   - Resume parsing pipeline with Draft staging and user verification flow.
   - Strict evidence gate validation.
-  - Full Next.js frontend for CV upload and Evidence Bank management.
+  - Full Next.js frontend for CV upload and Career Profile management.
 - [x] **Phase 2: Job Discovery & Ingestion**
   - `JobSource` abstraction protocol.
   - `ArbeitnowSource` implementation with title normalization.
@@ -493,7 +496,7 @@ npm run lint
   - Match explanation, evaluation mode tracking (`ai`, `heuristic`, `prescreen_filtered`), and dialog breakdown in Next.js UI.
 - [x] **Phase 4: Document Generation & Tailoring**
   - Zero-hallucination evidence selection by ID (`selected_ids ⊆ allowed_ids`).
-  - Multi-tier verification trust tagging (`verified`, `partially_verified`, `unverified`) enabling immediate tailored CV generation without mandatory upfront verification.
+  - Multi-tier trust tagging infrastructure ready for partner verification integration.
   - Evidence-grounded cover letter generation with candidate positioning strategies.
   - Template rendering (`python-docx` / `.docx`) with dual persistence (disk + PostgreSQL `file_bytes`) for container resilience.
 - [ ] **Phase 5: Automated Asynchronous Pipelines & Enterprise Scale**

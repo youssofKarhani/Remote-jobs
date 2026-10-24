@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { LogOut, User } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { vcopy } from "@/lib/verification-copy";
 
 export interface SignOutDialogProps {
   children?: React.ReactNode;
@@ -84,7 +85,7 @@ export function SignOutDialog({
         )}
 
         <p className="text-xs text-zinc-400 leading-relaxed">
-          Your verified Evidence Bank records, matching preferences, and tailored ATS applications remain saved. You can sign back in at any time.
+          {vcopy("signOut.dialogDescription")}
         </p>
 
         <DialogFooter className="gap-2 sm:gap-2 pt-2">

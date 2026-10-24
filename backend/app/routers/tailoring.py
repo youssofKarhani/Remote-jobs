@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
+from app.config import settings
 from app.database import get_db
 from app.models.document import GeneratedDocument
 from app.models.job import Job
@@ -40,7 +41,7 @@ async def tailor_cv_for_job(
             user=current_user,
             job=job,
             max_bullets_per_role=payload.max_bullets_per_role,
-            require_verified=payload.require_verified,
+            require_verified=payload.require_verified if settings.FEATURE_EVIDENCE_VERIFICATION else False,
         )
     except ValueError as e:
         raise HTTPException(

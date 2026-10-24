@@ -24,6 +24,7 @@ import {
   Compass,
   FileText,
 } from "lucide-react";
+import { vcopy } from "@/lib/verification-copy";
 
 interface CoverLetterDrawerProps {
   jobId: string;
@@ -157,7 +158,7 @@ export function CoverLetterDrawer({
           <DialogDescription className="text-xs text-zinc-400">
             Generate a targeted, hallucination-free cover letter for{" "}
             <span className="text-zinc-200 font-medium">{jobTitle}</span> at{" "}
-            <span className="text-zinc-200 font-medium">{companyName}</span> grounded in verified Evidence Bank facts.
+            <span className="text-zinc-200 font-medium">{companyName}</span> {vcopy("coverLetter.dialogSubtitle")}
           </DialogDescription>
         </DialogHeader>
 
@@ -251,7 +252,7 @@ export function CoverLetterDrawer({
               <Textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Click any strategy above or 'Generate' to create a targeted engineering cover letter based on your verified Evidence Bank..."
+                placeholder={vcopy("coverLetter.placeholder")}
                 className="h-64 font-sans text-xs sm:text-sm leading-relaxed bg-zinc-900/60 border-zinc-800 text-zinc-200 resize-none p-3.5"
               />
             )}
@@ -262,7 +263,7 @@ export function CoverLetterDrawer({
             <div className="p-3 rounded-xl border border-zinc-800 bg-zinc-900/40 space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-mono text-zinc-300 font-medium">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                <span>Grounded Evidence IDs (Zero Hallucination Proof):</span>
+                <span>{vcopy("coverLetter.groundedProof")}</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {referencedEvidenceIds.map((id) => (

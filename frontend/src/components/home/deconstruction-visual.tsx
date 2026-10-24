@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { FileText, CheckCircle2, Sparkles, Briefcase, Wrench, FolderGit2, GraduationCap } from "lucide-react";
+import { vcopy } from "@/lib/verification-copy";
 
 export function DeconstructionVisual() {
   const [activeHover, setActiveHover] = useState<string | null>(null);
@@ -13,7 +14,7 @@ export function DeconstructionVisual() {
       icon: Briefcase,
       count: "3 Roles • 8 Bullets",
       border: "border-indigo-500/30",
-      tag: "Verified",
+      tag: vcopy("visual.rolesTag"),
       delayClass: "animate-float-1",
     },
     {
@@ -22,16 +23,16 @@ export function DeconstructionVisual() {
       icon: Wrench,
       count: "14 Canonical Skills",
       border: "border-violet-500/30",
-      tag: "Verified",
+      tag: vcopy("visual.rolesTag"),
       delayClass: "animate-float-2",
     },
     {
       id: "projects",
       title: "Projects",
       icon: FolderGit2,
-      count: "4 Verified Builds",
+      count: vcopy("visual.buildsCount"),
       border: "border-blue-500/30",
-      tag: "Verified",
+      tag: vcopy("visual.rolesTag"),
       delayClass: "animate-float-3",
     },
     {
@@ -40,7 +41,7 @@ export function DeconstructionVisual() {
       icon: GraduationCap,
       count: "B.S. & Certifications",
       border: "border-zinc-700/50",
-      tag: "Verified",
+      tag: vcopy("visual.rolesTag"),
       delayClass: "animate-float-1",
     },
   ];
@@ -168,7 +169,7 @@ export function DeconstructionVisual() {
         {/* Supporting Copy */}
         <div className="mt-8 pt-6 border-t border-zinc-800/60 text-center">
           <p className="text-sm md:text-base text-zinc-300 font-light tracking-wide max-w-2xl mx-auto">
-            &ldquo;We turn your static resume into dynamic, verifiable building blocks.&rdquo;
+            {vcopy("visual.buildingBlocksQuote")}
           </p>
         </div>
 

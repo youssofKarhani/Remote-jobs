@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cvApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { ExtractionSummaryData } from "./evidence-bank-step";
+import { vcopy } from "@/lib/verification-copy";
 
 const SAMPLE_DEMO_CV = `Alex Rivera
 Senior Distributed Systems & Backend Engineer
@@ -83,7 +84,7 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
         throw new Error("Please select a file or paste resume text.");
       }
 
-      setStatusMessage("Assigning immutable stable IDs and persisting to Evidence Bank...");
+      setStatusMessage(vcopy("cvUpload.persistingStep"));
 
       const summary = res?.summary || {
         experiences_extracted: 0,
@@ -163,8 +164,8 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
         </h2>
 
         <p className="text-sm md:text-base text-zinc-400 font-light max-w-2xl mx-auto leading-relaxed">
-          We deconstruct your resume into discrete, verifiable records in your Evidence Bank. 
-          No fake compatibility numbers &mdash; you can tailor and curate this evidence for any job.
+          {vcopy("onboarding.evidenceSubtitle")}
+
         </p>
       </div>
 
@@ -303,10 +304,10 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
 
               <div className="space-y-2 max-w-md mx-auto">
                 <h3 className="text-xl font-light text-zinc-100">
-                  {statusMessage || "Extracting Evidence..."}
+                  {statusMessage || vcopy("onboarding.extractStatus")}
                 </h3>
                 <p className="text-xs text-zinc-400 font-mono">
-                  Deconstructing resume into immutable, verified entities...
+                  {vcopy("onboarding.deconstructStatus")}
                 </p>
               </div>
 

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
 import { LogIn, UserPlus, Sparkles, AlertCircle, Loader2 } from "lucide-react";
+import { vcopy } from "@/lib/verification-copy";
 
 interface AuthDialogProps {
   children?: React.ReactNode;
@@ -107,7 +108,7 @@ export function AuthDialog({
             {tab === "login" ? "Welcome Back" : "Create Candidate Account"}
           </DialogTitle>
           <DialogDescription className="text-zinc-400 text-xs">
-            Authenticate to sync external jobs, manage your verified Evidence Bank, and customize deterministic filters.
+            {vcopy("auth.dialogDescription")}
           </DialogDescription>
         </DialogHeader>
 
