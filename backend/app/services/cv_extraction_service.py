@@ -51,9 +51,12 @@ class CVExtractionService:
         user: User,
         raw_text: str,
         replace_existing: bool = False,
+        cleaned_text: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Extract entities from raw CV text and persist into candidate's Evidence Bank."""
         draft: ExtractedEvidenceBankDraft = await self.ai.extract_cv_to_evidence_bank(raw_text)
+        if cleaned_text and not draft.cleaned_cv_text:
+            draft.cleaned_cv_text = cleaned_text
 
         # 1. Update or create CandidateProfile
         profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
@@ -315,6 +318,8 @@ class CVExtractionService:
             "projects_extracted": total_projects,
             "certifications_extracted": total_certs,
             "education_extracted": total_edus,
+            "languages_extracted": len(draft.languages),
+            "extraction_mode": draft.extraction_mode,
             "new_experiences_added": exp_records_created,
             "new_bullets_added": bullets_created,
             "new_skills_added": skills_created,

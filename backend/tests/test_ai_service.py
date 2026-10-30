@@ -689,7 +689,7 @@ def sleepless_slaves_stack(tmp_path):
         job_store=job_store,
     )
 
-    async def routed_gateway_call(model: str, prompt: str):
+    async def routed_gateway_call(model: str, prompt: str, **kwargs):
         async with httpx.AsyncClient(transport=gateway_transport, base_url="http://sleepless-gateway:8001") as g_client:
             resp = await g_client.post(
                 "/v1/chat/completions",

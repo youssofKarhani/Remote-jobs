@@ -1,6 +1,16 @@
 """Backend domain and business logic services."""
 
 from app.services.document_parser import parse_document
+from app.services.spatial_parser import extract_spatial_document
+from app.services.layout import reconstruct_reading_order
+from app.services.provenance_validator import (
+    CanonicalCVValidationReport,
+    EntityValidationResult,
+    ProvenanceErrorCode,
+    ProvenanceValidationError,
+    validate_canonical_cv,
+    validate_entity_provenance,
+)
 from app.services.cv_extraction_service import cv_extraction_service, CVExtractionService
 from app.services.evidence_validation import (
     EvidenceValidationError,
@@ -22,6 +32,14 @@ from app.services.job_filtering import (
 
 __all__ = [
     "parse_document",
+    "extract_spatial_document",
+    "reconstruct_reading_order",
+    "validate_canonical_cv",
+    "validate_entity_provenance",
+    "ProvenanceValidationError",
+    "ProvenanceErrorCode",
+    "CanonicalCVValidationReport",
+    "EntityValidationResult",
     "cv_extraction_service",
     "CVExtractionService",
     "EvidenceValidationError",

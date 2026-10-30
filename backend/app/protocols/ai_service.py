@@ -101,6 +101,30 @@ class ExtractedEvidenceBankDraft(BaseModel):
     projects: List[ExtractedProject] = Field(default_factory=list)
     certifications: List[ExtractedCertification] = Field(default_factory=list)
     education: List[ExtractedEducation] = Field(default_factory=list)
+    languages: List[str] = Field(
+        default_factory=list,
+        description="Spoken/natural languages extracted from CV.",
+    )
+    unclassified_sections: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description="Lines from unknown/unsupported CV sections preserved without discard.",
+    )
+    raw_cv_text: Optional[str] = Field(
+        default=None,
+        description="Unmodified raw extracted CV text.",
+    )
+    cleaned_cv_text: Optional[str] = Field(
+        default=None,
+        description="Cleaned/interpreted CV text used during extraction.",
+    )
+    extraction_mode: str = Field(
+        default="heuristic",
+        description="Extraction mode: 'llm' or 'heuristic_fallback'.",
+    )
+    warnings: List[str] = Field(
+        default_factory=list,
+        description="Non-fatal extraction or fallback warnings.",
+    )
 
 
 # ---------------------------------------------------------------------------

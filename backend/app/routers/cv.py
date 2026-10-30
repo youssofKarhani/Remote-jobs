@@ -14,6 +14,7 @@ from app.services.document_parser import (
     EmptyDocumentError,
     UnsupportedFileFormatError,
     parse_document,
+    parse_document_detailed,
 )
 
 router = APIRouter(prefix="/cv", tags=["CV Ingestion"])
@@ -56,7 +57,9 @@ async def upload_cv_document(
         )
 
     try:
-        raw_text = parse_document(contents, filename)
+        parsed_doc = parse_document_detailed(contents, filename)
+        raw_text = parsed_doc.raw_text
+        cleaned_text = parsed_doc.cleaned_text
     except EmptyDocumentError as e:
         _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
         raise HTTPException(
@@ -84,6 +87,7 @@ async def upload_cv_document(
         user=current_user,
         raw_text=raw_text,
         replace_existing=replace_existing,
+        cleaned_text=cleaned_text,
     )
 
     _cv_task_store[task_id] = {

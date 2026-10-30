@@ -11,7 +11,7 @@ import json
 import logging
 import re
 import time
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Set, Type, TypeVar
+from typing import Any, Callable, Coroutine, Dict, List, Optional, Set, Tuple, Type, TypeVar
 import httpx
 from pydantic import BaseModel
 
@@ -462,11 +462,14 @@ class DefaultAIService:
     # -------------------------------------------------------------------------
     async def extract_cv_to_evidence_bank(self, cv_text: str) -> ExtractedEvidenceBankDraft:
         """Parse raw CV text into structured Evidence Bank entities."""
+        from app.services.document_parser import clean_extracted_cv_text
+        raw_cv_text = cv_text
+        cleaned_cv_text = clean_extracted_cv_text(cv_text)
         prompt = (
             "You are an expert CV parser. Extract all candidate information, work experiences, "
             "discrete achievement bullets, skills, projects, certifications, and education from "
             "the CV text below into the target schema.\n\n"
-            f"<cv_text>\n{cv_text}\n</cv_text>"
+            f"<cv_text>\n{cleaned_cv_text}\n</cv_text>"
         )
         result = await self._execute_structured_task(
             remotejobs_task="extract_cv",
@@ -477,9 +480,12 @@ class DefaultAIService:
             response_model=ExtractedEvidenceBankDraft,
         )
         if result and (result.experiences or result.skills or result.headline):
+            result.raw_cv_text = raw_cv_text
+            result.cleaned_cv_text = cleaned_cv_text
+            result.extraction_mode = "llm"
             return result
 
-        return self._heuristic_cv_extraction(cv_text)
+        return self._heuristic_cv_extraction(raw_cv_text)
 
     # -------------------------------------------------------------------------
     # 2. Job Pre-Screening
@@ -914,86 +920,586 @@ class DefaultAIService:
             referenced_evidence_ids=evidence_ids[:4],
         )
 
+    # -------------------------------------------------------------------------
+    # Heuristic CV Extraction Hardening Helpers
+    # -------------------------------------------------------------------------
+    _EXPERIENCE_HEADERS = {
+        "experience", "work experience", "professional experience",
+        "employment", "employment history", "work history",
+        "career history", "relevant experience",
+    }
+    _SKILLS_HEADERS = {
+        "skill", "skills", "technical skills", "technologies",
+        "tech stack", "core competencies", "skills & technologies",
+        "skills and technologies", "skills technologies",
+        "technical competencies", "core skills",
+    }
+    _PROJECTS_HEADERS = {
+        "project", "projects", "key projects", "personal projects",
+        "academic projects", "selected projects", "portfolio",
+        "portfolio projects", "notable projects", "side projects",
+    }
+    _CERTIFICATIONS_HEADERS = {
+        "certification", "certifications", "certificate", "certificates",
+        "courses & certifications", "courses and certifications",
+        "courses certifications", "licenses", "licenses & certifications",
+        "licenses and certifications", "licenses certifications",
+        "credentials", "training & certifications", "training certifications",
+    }
+    _EDUCATION_HEADERS = {
+        "education", "academic background", "education & training",
+        "education and training", "education training",
+        "academic qualifications", "academics", "educational background",
+    }
+    _LANGUAGES_HEADERS = {
+        "language", "languages", "languages spoken",
+        "spoken languages", "foreign languages",
+    }
+    _SUMMARY_HEADERS = {
+        "summary", "professional summary", "executive summary",
+        "about me", "profile", "personal profile",
+        "objective", "career objective",
+    }
+    _OTHER_KNOWN_HEADERS = {
+        "awards", "honors", "honors & awards", "honors and awards",
+        "honors awards", "publications", "volunteer", "volunteering",
+        "volunteer experience", "interests", "hobbies", "references",
+        "activities", "extracurricular activities", "affiliations",
+        "memberships", "contact", "contact information", "personal details",
+    }
+
+    _SKILL_CONTINUATION_HEADS = {
+        "learning", "processing", "engineering", "science", "intelligence",
+        "vision", "networks", "network", "models", "modeling", "systems",
+        "system", "analysis", "analytics", "visualization", "computing",
+        "architecture", "development", "automation", "integration",
+        "integrations", "management", "pipelines", "pipeline",
+        "orchestration", "optimization", "mining", "forecasting", "testing",
+        "security", "administration", "compose", "script", "scripts",
+        "studio", "server", "framework", "frameworks", "api", "apis",
+        "warehousing", "governance", "ops", "routing", "prompting", "tuning",
+    }
+    _SKILL_CONTINUATION_PREFIXES = {
+        "reinforcement", "machine", "deep", "statistical", "transfer",
+        "federated", "supervised", "unsupervised", "semi-supervised",
+        "self-supervised", "natural", "natural language", "language", "data",
+        "prompt", "software", "cloud", "computer", "neural", "transformer",
+        "real-time", "event-driven", "agent", "web", "business",
+        "distributed", "backend", "frontend", "full-stack", "docker",
+        "google", "google apps", "google sheets", "looker", "apache",
+        "amazon", "microsoft", "power", "continuous", "automated",
+        "predictive", "exploratory", "exploratory data", "sentiment",
+        "time", "time series", "feature", "model", "fine", "large language",
+    }
+
+    @classmethod
+    def _is_date_range_or_year_span(cls, candidate: str) -> bool:
+        """Return True if candidate string represents a date range or year span rather than a phone number."""
+        cand = candidate.strip()
+        if not cand:
+            return True
+
+        # Reject YYYY - YYYY, MM/YYYY - MM/YYYY, YYYY to YYYY, etc.
+        if re.search(
+            r"\b(?:(?:0?[1-9]|1[0-2])[/\.\-]\s*)?(?:19|20)\d{2}\s*(?:[-–—/]|to)\s*(?:est\.?\s*)?(?:(?:0?[1-9]|1[0-2])[/\.\-]\s*)?(?:19|20)\d{2}\b",
+            cand,
+            re.I,
+        ):
+            return True
+
+        # If not explicitly starting with '+', check if digit groups are just years (1950-2039)
+        if not cand.startswith("+"):
+            groups = re.findall(r"\d+", cand)
+            total_digits = sum(len(g) for g in groups)
+            if groups and all(len(g) == 4 and 1950 <= int(g) <= 2039 for g in groups):
+                return True
+            if total_digits <= 8 and any(len(g) == 4 and 1950 <= int(g) <= 2039 for g in groups):
+                return True
+
+        return False
+
+    @classmethod
+    def _extract_phone_number(cls, text: str) -> Optional[str]:
+        """Extract a valid telephone number while rejecting date ranges such as 2019-2022 or 2020 - 2024."""
+        # 1. Check explicitly labeled phone lines first
+        for line in text.splitlines():
+            label_match = re.search(
+                r"(?:phone(?:\s+number)?|tel(?:ephone)?|mobile|cell)\s*[:\-]?\s*(\+?\d[\d \t\-\(\)]{6,22}\d)",
+                line,
+                re.I,
+            )
+            if label_match:
+                cand = re.sub(r"[ \t]{2,}", " ", label_match.group(1).strip())
+                digits = re.sub(r"\D", "", cand)
+                if not cls._is_date_range_or_year_span(cand) and 7 <= len(digits) <= 15:
+                    return cand
+
+        # 2. Scan lines for standalone international or local phone numbers
+        for line in text.splitlines():
+            for match in re.finditer(r"(?<![\w/])(\+?\d[\d \t\-\(\)]{6,22}\d)(?![\w/])", line):
+                cand = re.sub(r"[ \t]{2,}", " ", match.group(1).strip())
+                if cls._is_date_range_or_year_span(cand):
+                    continue
+                digits = re.sub(r"\D", "", cand)
+                if not (8 <= len(digits) <= 15):
+                    continue
+                # If no leading '+', '0', or '(', require at least 9 digits so 8-digit spans are not misread
+                if not cand.startswith(("+", "0", "(")) and len(digits) < 9:
+                    continue
+                return cand
+
+        return None
+
+    @classmethod
+    def _is_footer_or_noise_line(cls, line: str) -> bool:
+        """Detect obvious CV footer, guidance, or page-number boilerplate."""
+        cleaned = re.sub(r"^[-•*–\s]+", "", line).strip()
+        if not cleaned:
+            return True
+        lower = cleaned.lower()
+
+        if re.search(r"^for more information\b.*\bvisit my\b", lower):
+            return True
+        if re.search(
+            r"^for more information on my\s+(?:education|certificates?|certifications?|projects?|experience|skills)",
+            lower,
+        ):
+            return True
+        if re.match(r"^visit my (?:linkedin|github|portfolio)(?:\s+profile)?\.?$", lower):
+            return True
+        if re.match(r"^references?\s+available\s+(?:upon|on)\s+request\.?$", lower):
+            return True
+        if re.match(r"^page\s+\d+\s*(?:of|/)\s*\d+\.?$", lower):
+            return True
+        return False
+
+    @classmethod
+    def _detect_section_header(cls, line: str) -> Optional[Tuple[str, str]]:
+        """Return (canonical_section, raw_heading) if line is a standalone CV section heading."""
+        stripped = line.strip()
+        if not stripped or len(stripped) > 55:
+            return None
+        # Bullet items are never top-level section headers
+        if stripped.startswith(("-", "•", "*", "–")):
+            return None
+
+        raw_heading = re.sub(r"[\s:–—\-]+$", "", stripped).strip()
+        norm = re.sub(r"\s+", " ", raw_heading).lower()
+        norm_no_amp = re.sub(r"\s+", " ", norm.replace("&", " ").replace("/", " ")).strip()
+
+        for candidate in (norm, norm_no_amp):
+            if candidate in cls._LANGUAGES_HEADERS:
+                return ("languages", raw_heading)
+            if candidate in cls._CERTIFICATIONS_HEADERS:
+                return ("certifications", raw_heading)
+            if candidate in cls._PROJECTS_HEADERS:
+                return ("projects", raw_heading)
+            if candidate in cls._SKILLS_HEADERS:
+                return ("skills", raw_heading)
+            if candidate in cls._EXPERIENCE_HEADERS:
+                return ("experience", raw_heading)
+            if candidate in cls._EDUCATION_HEADERS:
+                return ("education", raw_heading)
+            if candidate in cls._SUMMARY_HEADERS:
+                return ("summary", raw_heading)
+            if candidate in cls._OTHER_KNOWN_HEADERS:
+                return ("other", raw_heading)
+
+        return None
+
+    @classmethod
+    def _deinterleave_layout_lines(cls, text: str) -> List[str]:
+        """De-interleave two-column layout pages and header contact columns into sequential reading order."""
+        from app.services.document_parser import reconstruct_broken_urls
+        output_lines: List[str] = []
+        pages = text.split("\f")
+
+        contact_right_pattern = re.compile(
+            r"^(?:email|address|phone(?:\s+number)?|tel(?:ephone)?|mobile|social\s+links|linkedin|github|portfolio)\s*:|"
+            r"^https?://|^\+\d",
+            re.I,
+        )
+
+        for page in pages:
+            raw_lines = [ln.rstrip() for ln in page.splitlines() if ln.strip()]
+            if not raw_lines:
+                continue
+
+            # Determine if this page has a true two-column body layout:
+            # Look for lines with a 4+ space gap where either the left or right segment is a section header,
+            # or right-indented section headers (leading spaces >= 22).
+            right_header_starts: List[int] = []
+            for ln in raw_lines:
+                lead_spaces = len(ln) - len(ln.lstrip(" \t"))
+                if lead_spaces >= 22 and cls._detect_section_header(ln.strip()) is not None:
+                    right_header_starts.append(lead_spaces)
+                    continue
+                for m in re.finditer(r"(\S)([ \t]{4,})(\S)", ln):
+                    split_idx = m.start(3)
+                    if split_idx < 18:
+                        continue
+                    left_seg = ln[: m.end(1)].strip()
+                    right_seg = ln[split_idx:].strip()
+                    if cls._detect_section_header(right_seg) is not None or (
+                        cls._detect_section_header(left_seg) is not None and len(right_seg) > 2
+                    ):
+                        right_header_starts.append(split_idx)
+                        break
+
+            if right_header_starts:
+                # Two-column page detected: split lines around the column gutter
+                col_gutter = min(right_header_starts)
+                left_col: List[str] = []
+                right_col: List[str] = []
+
+                for ln in raw_lines:
+                    lead_spaces = len(ln) - len(ln.lstrip(" \t"))
+                    if lead_spaces >= max(20, col_gutter - 6):
+                        right_col.append(ln.strip())
+                        continue
+
+                    # Find the gap closest to col_gutter
+                    best_split: Optional[Tuple[int, int]] = None
+                    for m in re.finditer(r"(\S)([ \t]{4,})(\S)", ln):
+                        s_idx = m.start(3)
+                        if s_idx >= max(18, col_gutter - 12):
+                            best_split = (m.end(1), s_idx)
+                            break
+
+                    if best_split is not None:
+                        l_part = ln[: best_split[0]].strip()
+                        r_part = ln[best_split[1] :].strip()
+                        if l_part:
+                            left_col.append(l_part)
+                        if r_part:
+                            right_col.append(r_part)
+                    else:
+                        left_col.append(ln.strip())
+
+                # Reconstruct any URLs broken within a single column (e.g. right-column wrapped LinkedIn URL)
+                left_joined = reconstruct_broken_urls("\n".join(left_col))
+                right_joined = reconstruct_broken_urls("\n".join(right_col))
+                left_lines_clean = [s.strip() for s in left_joined.splitlines() if s.strip()]
+                right_lines_clean = [s.strip() for s in right_joined.splitlines() if s.strip()]
+
+                # Split both columns into pre-section header lines and section body lines
+                l_sec_idx = next(
+                    (i for i, s in enumerate(left_lines_clean) if cls._detect_section_header(s) is not None),
+                    len(left_lines_clean),
+                )
+                r_sec_idx = next(
+                    (i for i, s in enumerate(right_lines_clean) if cls._detect_section_header(s) is not None),
+                    len(right_lines_clean),
+                )
+                output_lines.extend(left_lines_clean[:l_sec_idx])
+                output_lines.extend(right_lines_clean[:r_sec_idx])
+                output_lines.extend(left_lines_clean[l_sec_idx:])
+                output_lines.extend(right_lines_clean[r_sec_idx:])
+            else:
+                # Single-column body page: still separate right-aligned header contact fields on the same line
+                page_left: List[str] = []
+                page_right_contacts: List[str] = []
+                for ln in raw_lines:
+                    split_done = False
+                    for m in re.finditer(r"(\S)([ \t]{4,})(\S)", ln):
+                        s_idx = m.start(3)
+                        l_part = ln[: m.end(1)].strip()
+                        r_part = ln[s_idx:].strip()
+                        if contact_right_pattern.search(r_part):
+                            if l_part:
+                                page_left.append(l_part)
+                            page_right_contacts.append(r_part)
+                            split_done = True
+                            break
+                    if not split_done:
+                        page_left.append(ln.strip())
+
+                if page_right_contacts:
+                    reconstructed_contacts = reconstruct_broken_urls("\n".join(page_right_contacts))
+                    # Insert contact lines right after initial header lines
+                    output_lines.extend(
+                        s.strip() for s in reconstructed_contacts.splitlines() if s.strip()
+                    )
+                output_lines.extend(page_left)
+
+        return output_lines
+
+    @classmethod
+    def _split_outside_parens(cls, text: str, delimiters: str = ",|•;") -> List[str]:
+        """Split string on delimiter characters only when parenthesis depth is zero."""
+        parts: List[str] = []
+        buf: List[str] = []
+        depth = 0
+        delim_set = set(delimiters)
+        for ch in text:
+            if ch == "(":
+                depth += 1
+                buf.append(ch)
+            elif ch == ")":
+                depth = max(0, depth - 1)
+                buf.append(ch)
+            elif ch in delim_set and depth == 0:
+                parts.append("".join(buf).strip())
+                buf = []
+            else:
+                buf.append(ch)
+        if buf:
+            parts.append("".join(buf).strip())
+        return [p for p in parts if p]
+
+    @classmethod
+    def _join_wrapped_skill_lines(cls, raw_skill_lines: List[str]) -> List[str]:
+        """Join skill lines wrapped across line breaks (e.g. 'Reinforcement\\nLearning')."""
+        merged: List[str] = []
+        for line in raw_skill_lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if not merged:
+                merged.append(stripped)
+                continue
+
+            prev = merged[-1]
+            prev_no_bullet = re.sub(r"^[-•*–]\s*", "", prev).strip()
+            curr_is_bullet = stripped.startswith(("-", "•", "*", "–"))
+
+            # 1. Unclosed parentheses in previous line
+            if prev.count("(") > prev.count(")"):
+                merged[-1] = f"{prev} {stripped}"
+                continue
+
+            # 2. Previous line ends with explicit continuation punctuation/conjunction
+            if re.search(r"(?:[,/&+\-]|\b(?:and|or|of|for|in|to|with))$", prev.rstrip(), re.I):
+                if not curr_is_bullet:
+                    joiner = "" if prev.rstrip().endswith("-") else " "
+                    merged[-1] = f"{prev.rstrip()}{joiner}{stripped}"
+                    continue
+
+            # 3. Current line starts with parenthetical or continuation symbol
+            if not curr_is_bullet and stripped.startswith(("(", ")", ",", "/", "&")):
+                merged[-1] = f"{prev.rstrip()} {stripped}"
+                continue
+
+            # 4. Linguistic / spatial continuation for wrapped multi-word skills (e.g. Reinforcement\nLearning)
+            if not curr_is_bullet and ":" not in stripped:
+                # Extract last skill token from prev and first skill token from stripped
+                prev_after_colon = prev_no_bullet.split(":")[-1].strip()
+                prev_tokens = cls._split_outside_parens(prev_after_colon)
+                curr_tokens = cls._split_outside_parens(stripped)
+
+                if prev_tokens and curr_tokens:
+                    last_item = prev_tokens[-1].strip()
+                    first_item = curr_tokens[0].strip()
+                    first_word = first_item.split()[0].lower() if first_item.split() else ""
+                    last_lower = last_item.lower()
+                    last_word = last_lower.split()[-1] if last_lower.split() else ""
+
+                    if (
+                        first_word in cls._SKILL_CONTINUATION_HEADS
+                        and (
+                            last_lower in cls._SKILL_CONTINUATION_PREFIXES
+                            or last_word in cls._SKILL_CONTINUATION_PREFIXES
+                        )
+                    ):
+                        merged[-1] = f"{prev.rstrip()} {stripped}"
+                        continue
+
+            merged.append(stripped)
+
+        return merged
+
+    @classmethod
+    def _infer_skill_category(cls, skill_name: str, category_hint: Optional[str] = None) -> str:
+        """Map skill name and optional section subheading to a canonical skill category."""
+        hint = (category_hint or "").lower()
+        s_low = skill_name.lower()
+
+        if any(k in hint for k in ["ai", "ml", "llm", "machine learning", "data science"]):
+            return "ai_ml"
+        if any(k in hint for k in ["data", "analytics", "etl"]):
+            return "data_engineering"
+        if any(k in hint for k in ["cloud", "devops", "infra"]):
+            return "devops"
+        if any(k in hint for k in ["backend", "web", "api"]):
+            return "backend"
+        if any(k in hint for k in ["automation", "integration", "tool"]):
+            return "tools"
+
+        if any(
+            k in s_low
+            for k in [
+                "machine learning", "deep learning", "reinforcement learning",
+                "nlp", "natural language", "llm", "gpt", "gemini", "ollama",
+                "tensorflow", "keras", "pytorch", "scikit-learn", "nltk",
+                "transformer", "prompt engineering", "agent",
+            ]
+        ):
+            return "ai_ml"
+        if any(k in s_low for k in ["pandas", "numpy", "parquet", "bigquery", "etl", "pipeline", "looker", "spark"]):
+            return "data_engineering"
+        if any(k in s_low for k in ["docker", "kubernetes", "terraform", "opentofu", "ci/cd", "git", "aws", "gcp"]):
+            return "devops"
+        if any(k in s_low for k in ["python", "java", "sql", "api", "backend", "fastapi", "flask", "node", "postgres", "mysql", "mongodb", "mangodb", "redis"]):
+            return "backend"
+        return "programming"
+
     def _heuristic_cv_extraction(self, cv_text: str) -> ExtractedEvidenceBankDraft:
         """Robust heuristic parser for CV text extraction into structured draft entities."""
-        lines = [line.strip() for line in cv_text.splitlines() if line.strip()]
-        
+        from app.services.document_parser import clean_extracted_cv_text, reconstruct_broken_urls
+        raw_cv_text = cv_text
+        cleaned_text = clean_extracted_cv_text(cv_text)
+
+        # De-interleave two-column layouts and reconstruct any newly adjacent broken URLs
+        ordered_lines = self._deinterleave_layout_lines(cleaned_text)
+        reconstructed_full = reconstruct_broken_urls("\n".join(ordered_lines))
+
+        # Filter out obvious footer / guidance noise lines (including 2-line wrapped footer)
+        lines: List[str] = []
+        raw_ordered = [ln.strip() for ln in reconstructed_full.splitlines() if ln.strip()]
+        skip_next = False
+        for idx, ln in enumerate(raw_ordered):
+            if skip_next:
+                skip_next = False
+                continue
+            if self._is_footer_or_noise_line(ln):
+                if (
+                    idx + 1 < len(raw_ordered)
+                    and re.search(r"visit my (?:linkedin|github|portfolio)|linkedin profile\.?$", raw_ordered[idx + 1], re.I)
+                ):
+                    skip_next = True
+                continue
+            lines.append(ln)
+
         headline = None
         summary = None
-        phone = None
+        phone = self._extract_phone_number(reconstructed_full)
         location = None
         linkedin_url = None
         github_url = None
         portfolio_url = None
 
-        # Extract contact info via regex
-        phone_match = re.search(r"(\+?\d[\d\s\-\(\)]{7,}\d)", cv_text)
-        if phone_match:
-            phone = phone_match.group(1).strip()
-
-        li_match = re.search(r"https?://(?:www\.)?linkedin\.com/in/[\w\-]+", cv_text, re.I)
+        li_match = re.search(r"https?://(?:www\.)?linkedin\.com/in/[\w\-]+", reconstructed_full, re.I)
         if li_match:
             linkedin_url = li_match.group(0).strip()
 
-        gh_match = re.search(r"https?://(?:www\.)?github\.com/[\w\-]+", cv_text, re.I)
+        gh_match = re.search(r"https?://(?:www\.)?github\.com/[\w\-\.]+", reconstructed_full, re.I)
         if gh_match:
             github_url = gh_match.group(0).strip()
 
-        port_match = re.search(r"https?://(?:www\.)?(?!linkedin|github)[\w\.-]+\.[a-z]{2,}", cv_text, re.I)
+        port_match = re.search(
+            r"https?://(?!www\.linkedin\.com|linkedin\.com|www\.github\.com|github\.com)(?:www\.)?[\w\.-]+\.[a-z]{2,}(?:/[\w\-\./]*)?",
+            reconstructed_full,
+            re.I,
+        )
         if port_match:
             portfolio_url = port_match.group(0).strip()
 
-        loc_match = re.search(r"([A-Z][a-zA-Z\s]{2,30}?,\s*[A-Z][a-zA-Z]+)", cv_text)
-        if loc_match:
-            location = loc_match.group(1).splitlines()[0].strip()
+        # Prefer explicit Address/Location lines first, then fallback to City, Country regex
+        addr_match = re.search(r"(?:Address|Location)\s*:\s*([^\n]+)", reconstructed_full, re.I)
+        if addr_match:
+            location = addr_match.group(1).strip()
+        else:
+            header_chunk = "\n".join(lines[:6])
+            loc_match = re.search(r"\b([A-Z][a-zA-Z \t]{2,25}?,\s*[A-Z][a-zA-Z]+)\b", header_chunk)
+            if loc_match:
+                location = loc_match.group(1).splitlines()[0].strip()
 
         experiences: List[ExtractedExperience] = []
         skills: List[ExtractedSkill] = []
         projects: List[ExtractedProject] = []
         certifications: List[ExtractedCertification] = []
         education: List[ExtractedEducation] = []
+        languages: List[str] = []
+        unclassified_sections: Dict[str, List[str]] = {}
 
         current_section = "header"
+        current_other_heading = "other"
         current_exp: Optional[ExtractedExperience] = None
+        current_project: Optional[ExtractedProject] = None
+        pending_skill_lines: List[str] = []
 
-        for line in lines:
-            lower = line.lower()
-            
-            # Detect section headers (must be a concise heading or end with :)
-            is_header_candidate = len(line.split()) <= 4 or line.endswith(":")
-            if is_header_candidate:
-                if any(h in lower for h in ["experience", "employment", "work history"]):
-                    current_section = "experience"
-                    continue
-                elif any(h in lower for h in ["skills", "technical skills", "technologies", "tech stack"]):
-                    current_section = "skills"
-                    continue
-                elif any(h in lower for h in ["projects", "portfolio", "key projects"]):
-                    current_section = "projects"
-                    continue
-                elif any(h in lower for h in ["education", "academic", "university", "degree"]):
-                    current_section = "education"
-                    continue
-                elif any(h in lower for h in ["certification", "certificates", "licenses"]):
-                    current_section = "certifications"
-                    continue
-                elif any(h in lower for h in ["summary", "about me", "profile"]):
-                    current_section = "summary"
-                    continue
+        action_bullet_pattern = re.compile(
+            r"^[-•*–]\s*(?:developed|built|engineered|architected|analyzed|implemented|designed|created|automated|integrated|trained)\b",
+            re.I,
+        )
+
+        for idx, line in enumerate(lines):
+            detected = self._detect_section_header(line)
+            if detected is not None:
+                sec_name, raw_head = detected
+                current_section = sec_name
+                if sec_name == "other":
+                    current_other_heading = raw_head
+                    unclassified_sections.setdefault(current_other_heading, [])
+                continue
 
             if current_section == "header":
-                if not headline and len(line) < 80 and not any(c in line for c in ["@", "http", "+"]):
-                    headline = line
+                is_contact_line = bool(
+                    re.search(
+                        r"@|https?://|\+\d|^(?:email|address|phone|tel|mobile|social links|linkedin|github)\b",
+                        line,
+                        re.I,
+                    )
+                )
+                if not is_contact_line and len(line) < 80:
+                    if not headline:
+                        headline = line
+                    elif (
+                        headline
+                        and len(headline.split()) <= 4
+                        and not any(
+                            k in headline.lower()
+                            for k in ["engineer", "developer", "architect", "analyst", "manager", "lead", "consultant", "scientist"]
+                        )
+                        and any(
+                            k in line.lower()
+                            for k in ["engineer", "developer", "architect", "analyst", "manager", "lead", "consultant", "scientist"]
+                        )
+                    ):
+                        headline = f"{headline} — {line}"
+
             elif current_section == "summary":
                 if not summary:
                     summary = line
                 else:
                     summary += " " + line
+
             elif current_section == "experience":
                 is_bullet = line.startswith(("-", "•", "*", "–"))
-                is_role_line = (not is_bullet) and any(sep in line for sep in [" - ", " – ", " | ", " @ "])
+                # Check if a '- Role Title, MM/YYYY to ...' line is actually a role subheader under a company
+                role_date_sub = re.match(
+                    r"^[-–]\s*([^,•]{3,75}?),\s*(\d{1,2}/\d{4}|(?:19|20)\d{2})\s*(?:to|[-–—])\s*(Present|Current|\d{1,2}/\d{4}|(?:19|20)\d{2})$",
+                    line,
+                    re.I,
+                )
+                is_role_line = (not is_bullet) and any(sep in line for sep in [" - ", " – ", " — ", " | ", " @ "])
 
-                if is_bullet:
+                if role_date_sub and current_exp is not None:
+                    r_title = role_date_sub.group(1).strip()
+                    s_date = role_date_sub.group(2).strip()
+                    e_raw = role_date_sub.group(3).strip()
+                    is_curr = e_raw.lower() in ("present", "current")
+                    e_date = None if is_curr else e_raw
+                    if not current_exp.bullets and current_exp.role_title in (
+                        "Software Engineer",
+                        current_exp.location,
+                    ):
+                        current_exp.role_title = r_title
+                        current_exp.start_date = s_date
+                        current_exp.end_date = e_date
+                        current_exp.is_current = is_curr
+                    else:
+                        current_exp = ExtractedExperience(
+                            company_name=current_exp.company_name,
+                            role_title=r_title,
+                            location=current_exp.location,
+                            start_date=s_date,
+                            end_date=e_date,
+                            is_current=is_curr,
+                            bullets=[],
+                        )
+                        experiences.append(current_exp)
+                elif is_bullet:
                     bullet_text = re.sub(r"^[-•*–]\s*", "", line).strip()
                     if current_exp and bullet_text:
                         current_exp.bullets.append(
@@ -1003,18 +1509,29 @@ class DefaultAIService:
                             )
                         )
                 elif is_role_line or current_exp is None:
-                    role_parts = re.split(r"\s+[-–|@]\s+", line)
+                    role_parts = re.split(r"\s+[-–—|@]\s+", line, maxsplit=1)
                     if len(role_parts) >= 2:
                         comp = role_parts[0].strip()
-                        role = role_parts[1].strip()
+                        right_part = role_parts[1].strip()
+                        # Check if right_part is a location like 'Beirut, Lebanon (Remote)'
+                        if re.search(r"\b(?:remote|hybrid|on-site)\b|,\s*[A-Z]", right_part, re.I) and not any(
+                            k in right_part.lower()
+                            for k in ["engineer", "developer", "architect", "lead", "analyst", "intern", "consultant", "manager", "director"]
+                        ):
+                            exp_loc = right_part
+                            role = "Software Engineer"
+                        else:
+                            exp_loc = location or "Remote"
+                            role = right_part
                     else:
                         comp = line.strip()
                         role = "Software Engineer"
+                        exp_loc = location or "Remote"
 
                     current_exp = ExtractedExperience(
                         company_name=comp or "Company",
                         role_title=role or "Software Engineer",
-                        location=location or "Remote",
+                        location=exp_loc,
                         start_date="2022-01",
                         end_date=None,
                         is_current=True,
@@ -1022,55 +1539,133 @@ class DefaultAIService:
                     )
                     experiences.append(current_exp)
                 else:
-                    if current_exp and len(line) > 15:
+                    # Continuation line of previous bullet
+                    if current_exp and current_exp.bullets:
+                        current_exp.bullets[-1].text = f"{current_exp.bullets[-1].text} {line.strip()}"
+                    elif current_exp and len(line) > 15:
                         current_exp.bullets.append(
                             ExtractedEvidenceBullet(
                                 text=line.strip(),
                                 category="experience",
                             )
                         )
+
             elif current_section == "skills":
-                items = re.split(r"[,|•;]", line)
-                for item in items:
-                    s_name = item.strip()
-                    if s_name and len(s_name) < 40 and not s_name.lower().startswith("skill"):
-                        skills.append(
-                            ExtractedSkill(
-                                name=s_name,
-                                category=(
-                                    "backend"
-                                    if any(k in s_name.lower() for k in ["python", "java", "sql", "api", "backend", "fastapi"])
-                                    else "programming"
-                                ),
-                            )
-                        )
+                pending_skill_lines.append(line)
+
             elif current_section == "projects":
-                if len(line) > 10:
-                    projects.append(
-                        ExtractedProject(
-                            title=line[:50],
-                            description=line,
-                            technologies=["Python", "FastAPI"],
-                        )
-                    )
+                self._consume_project_line(line, projects)
+                current_project = projects[-1] if projects else None
+
             elif current_section == "education":
-                if len(line) > 10:
+                clean_edu = re.sub(r"^[-•*–]\s*", "", line).strip()
+                if not clean_edu:
+                    continue
+                # Check if line is institution continuation for previous education entry
+                if (
+                    education
+                    and education[-1].institution == education[-1].degree
+                    and any(k in clean_edu.lower() for k in ["university", "institute", "college", "school", "academy"])
+                ):
+                    education[-1].institution = clean_edu[:80]
+                elif len(clean_edu) > 5:
+                    year_matches = re.findall(r"(?:19|20)\d{2}", clean_edu)
+                    s_yr = year_matches[0] if len(year_matches) >= 1 else "2020"
+                    e_yr = year_matches[1] if len(year_matches) >= 2 else "2024"
+                    deg_parts = re.split(r"\s+[-–—]\s+", clean_edu, maxsplit=1)
+                    if len(deg_parts) == 2 and any(
+                        k in deg_parts[0].lower() for k in ["bsc", "bs", "msc", "ms", "bachelor", "master", "phd", "b.sc", "m.sc"]
+                    ):
+                        deg_title = deg_parts[0].strip()
+                        inst_title = deg_title
+                    elif len(deg_parts) == 2:
+                        inst_title = deg_parts[0].strip()[:80]
+                        deg_title = deg_parts[1].strip()[:80]
+                    else:
+                        inst_title = clean_edu[:80]
+                        deg_title = "Bachelor of Science"
+
                     education.append(
                         ExtractedEducation(
-                            institution=line[:60],
-                            degree="Bachelor of Science",
+                            institution=inst_title,
+                            degree=deg_title,
                             field_of_study="Computer Science",
-                            start_date="2020",
-                            end_date="2024",
+                            start_date=s_yr,
+                            end_date=e_yr,
                         )
                     )
+
             elif current_section == "certifications":
-                if len(line) > 5:
+                # Guard against portfolio projects leaking into certifications due to layout corruption
+                next_line = lines[idx + 1] if idx + 1 < len(lines) else ""
+                next_line_2 = lines[idx + 2] if idx + 2 < len(lines) else ""
+                looks_like_project_header = (
+                    (not line.startswith(("-", "•", "*", "–")))
+                    and (
+                        "(link)" in line.lower()
+                        or "senior project" in line.lower()
+                        or "technologies used:" in line.lower()
+                        or action_bullet_pattern.search(next_line) is not None
+                        or action_bullet_pattern.search(next_line_2) is not None
+                        or "technologies used:" in next_line.lower()
+                        or "technologies used:" in next_line_2.lower()
+                    )
+                )
+                if looks_like_project_header or "technologies used:" in line.lower() or action_bullet_pattern.search(line):
+                    current_section = "projects"
+                    self._consume_project_line(line, projects)
+                    continue
+
+                clean_cert = re.sub(r"^[-•*–]\s*", "", line).strip()
+                if len(clean_cert) > 3:
+                    cert_parts = re.split(r"\s+[—–]\s+|\s+-\s+(?=[A-Z])", clean_cert, maxsplit=1)
+                    c_name = cert_parts[0].strip()[:120]
+                    c_issuer = cert_parts[1].strip()[:80] if len(cert_parts) > 1 else "Professional Certification"
                     certifications.append(
                         ExtractedCertification(
-                            name=line[:80],
-                            issuing_organization="Professional Certification",
+                            name=c_name,
+                            issuing_organization=c_issuer,
                             issue_date="2024",
+                        )
+                    )
+
+            elif current_section == "languages":
+                clean_lang = re.sub(r"^[-•*–]\s*", "", line).strip()
+                if clean_lang and not self._is_footer_or_noise_line(clean_lang):
+                    for lang_item in self._split_outside_parens(clean_lang, delimiters=",;|•"):
+                        if lang_item and lang_item not in languages:
+                            languages.append(lang_item)
+
+            elif current_section == "other":
+                unclassified_sections.setdefault(current_other_heading, []).append(line)
+
+        # Process collected skill lines with wrapped-line continuation support
+        joined_skill_lines = self._join_wrapped_skill_lines(pending_skill_lines)
+        seen_skills: Set[str] = set()
+        for s_line in joined_skill_lines:
+            clean_s_line = re.sub(r"^[-•*–]\s*", "", s_line).strip()
+            if not clean_s_line:
+                continue
+            category_hint: Optional[str] = None
+            if ":" in clean_s_line:
+                head_part, tail_part = clean_s_line.split(":", 1)
+                if len(head_part.split()) <= 5:
+                    category_hint = head_part.strip()
+                    clean_s_line = tail_part.strip()
+
+            for item in self._split_outside_parens(clean_s_line, delimiters=",|•;"):
+                s_name = item.strip().rstrip(".")
+                if (
+                    s_name
+                    and len(s_name) <= 120
+                    and not s_name.lower().startswith("skill")
+                    and s_name.lower() not in seen_skills
+                ):
+                    seen_skills.add(s_name.lower())
+                    skills.append(
+                        ExtractedSkill(
+                            name=s_name,
+                            category=self._infer_skill_category(s_name, category_hint),
                         )
                     )
 
@@ -1114,7 +1709,113 @@ class DefaultAIService:
             projects=projects,
             certifications=certifications,
             education=education,
+            languages=languages,
+            unclassified_sections=unclassified_sections,
+            raw_cv_text=raw_cv_text,
+            cleaned_cv_text=cleaned_text,
+            extraction_mode="heuristic_fallback",
+            warnings=["Heuristic CV extraction path used."],
         )
+
+    @classmethod
+    def _consume_project_line(cls, line: str, projects: List[ExtractedProject]) -> None:
+        """Parse a line inside the Projects section into structured ExtractedProject items."""
+        stripped = line.strip()
+        if not stripped or len(stripped) <= 3:
+            return
+
+        is_bullet = stripped.startswith(("-", "•", "*", "–"))
+        tech_match = re.search(r"(?:—|--|-)?\s*Technologies\s+used\s*:\s*(.+)$", stripped, re.I)
+
+        if is_bullet and projects:
+            curr = projects[-1]
+            bullet_body = re.sub(r"^[-•*–]\s*", "", stripped).strip()
+            bullet_tech_match = re.search(r"(?:—|--|-)?\s*Technologies\s+used\s*:\s*(.+)$", bullet_body, re.I)
+            if bullet_tech_match:
+                tech_str = bullet_tech_match.group(1).strip().rstrip(".")
+                parsed_techs = [t.strip() for t in cls._split_outside_parens(tech_str, delimiters=",;") if t.strip()]
+                for t in parsed_techs:
+                    if t not in curr.technologies:
+                        curr.technologies.append(t)
+                desc_part = re.sub(r"[\s—–\-]+$", "", bullet_body[: bullet_tech_match.start()]).strip()
+                if desc_part:
+                    curr.description = (
+                        f"{curr.description} {desc_part}".strip()
+                        if curr.description != curr.title
+                        else desc_part
+                    )
+            else:
+                curr.description = (
+                    f"{curr.description} {bullet_body}".strip()
+                    if curr.description != curr.title
+                    else bullet_body
+                )
+            return
+
+        # Check if this non-bullet line is a wrapped continuation of the current project description/technologies
+        if projects:
+            curr = projects[-1]
+            if tech_match or curr.description.rstrip().endswith(("—", "-", "Technologies", "used:")):
+                if tech_match:
+                    tech_str = tech_match.group(1).strip().rstrip(".")
+                    for t in cls._split_outside_parens(tech_str, delimiters=",;"):
+                        t_clean = t.strip().rstrip(".")
+                        if t_clean and t_clean not in curr.technologies:
+                            curr.technologies.append(t_clean)
+                    prefix_desc = stripped[: tech_match.start()].strip().rstrip("—-").strip()
+                    if prefix_desc:
+                        curr.description = f"{curr.description} {prefix_desc}".strip()
+                else:
+                    for t in cls._split_outside_parens(stripped, delimiters=",;"):
+                        t_clean = t.strip().rstrip(".")
+                        if t_clean and t_clean not in curr.technologies:
+                            curr.technologies.append(t_clean)
+                return
+
+            # If current project was just created (description == title) and this line is a concise domain/category subtitle
+            if (
+                curr.description == curr.title
+                and curr.category is None
+                and len(stripped) <= 60
+                and not any(sep in stripped for sep in [" - ", " — "])
+                and any(
+                    k in stripped.lower()
+                    for k in [
+                        "machine learning", "software", "engineering", "data", "analytics",
+                        "natural language", "nlp", "iot", "cloud", "infrastructure",
+                        "full-stack", "web", "development", "backend", "frontend", "ai", "automation",
+                    ]
+                )
+            ):
+                curr.category = stripped
+                return
+
+            # If current project already has a description and this line is a lowercase continuation or ends with a period
+            if curr.description != curr.title and (stripped[0].islower() or len(stripped) > 65):
+                curr.description = f"{curr.description} {stripped}".strip()
+                return
+
+        # Single-line 'Project Title - Description' format (excluding '- Senior Project (link)')
+        if " - " in stripped and "senior project" not in stripped.lower():
+            t_part, d_part = stripped.split(" - ", 1)
+            if len(t_part.strip()) <= 50 and len(d_part.strip()) >= 10:
+                projects.append(
+                    ExtractedProject(
+                        title=t_part.strip(),
+                        description=stripped,
+                        technologies=[],
+                    )
+                )
+                return
+
+        if len(stripped) > 4:
+            projects.append(
+                ExtractedProject(
+                    title=stripped[:80],
+                    description=stripped,
+                    technologies=[],
+                )
+            )
 
 
 # Global singleton instance
