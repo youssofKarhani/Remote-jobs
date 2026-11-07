@@ -329,57 +329,77 @@ def route_and_parse_document(
     # 3. DOCX Path
     if doc_type == DocumentType.DOCX:
         from app.services.document_parser import parse_document
-        parsed = parse_document(file_bytes, filename=filename)
+        docx_raw_text = parse_document(file_bytes, filename=filename)
         from app.schemas.spatial import BoundingBox, SpatialBlock, SpatialLine, SpatialPage, SpatialWord
 
-        words = parsed.raw_text.split()
-        sp_words = [
-            SpatialWord(
-                word_id=f"docx_w_{i}",
-                line_id="docx_line_0",
+        lines = [line.strip() for line in docx_raw_text.splitlines() if line.strip()]
+        sp_blocks = []
+        current_y = 50.0
+        all_words_count = 0
+        for b_idx, line_str in enumerate(lines):
+            line_words = line_str.split()
+            all_words_count += len(line_words)
+            sp_words = [
+                SpatialWord(
+                    word_id=f"docx_w_{b_idx}_{w_idx}",
+                    line_id=f"docx_l_{b_idx}",
+                    page=1,
+                    text=w,
+                    x0=50.0 + (w_idx * 10.0),
+                    y0=current_y,
+                    x1=58.0 + (w_idx * 10.0),
+                    y1=current_y + 12.0,
+                )
+                for w_idx, w in enumerate(line_words)
+            ]
+            sp_line = SpatialLine(
+                line_id=f"docx_l_{b_idx}",
+                block_id=f"docx_b_{b_idx}",
                 page=1,
-                text=w,
-                x0=50.0 + (i * 8),
-                y0=50.0,
-                x1=58.0 + (i * 8),
-                y1=62.0,
+                bbox=BoundingBox(x0=50.0, y0=current_y, x1=500.0, y1=current_y + 12.0),
+                text=line_str,
+                words=sp_words,
             )
-            for i, w in enumerate(words)
-        ]
-        sp_line = SpatialLine(
-            line_id="docx_line_0",
-            block_id="docx_block_0",
-            page=1,
-            bbox=BoundingBox(x0=50.0, y0=50.0, x1=500.0, y1=62.0),
-            text=parsed.raw_text,
-            words=sp_words,
-        )
-        sp_block = SpatialBlock(
-            block_id="docx_block_0",
-            page=1,
-            bbox=BoundingBox(x0=50.0, y0=50.0, x1=500.0, y1=62.0),
-            raw_text=parsed.raw_text,
-            lines=[sp_line],
-        )
+            sp_block = SpatialBlock(
+                block_id=f"docx_b_{b_idx}",
+                page=1,
+                bbox=BoundingBox(x0=50.0, y0=current_y, x1=500.0, y1=current_y + 12.0),
+                raw_text=line_str,
+                lines=[sp_line],
+            )
+            sp_blocks.append(sp_block)
+            current_y += 20.0
+
+        if not sp_blocks:
+            sp_blocks = [
+                SpatialBlock(
+                    block_id="docx_b_0",
+                    page=1,
+                    bbox=BoundingBox(x0=50.0, y0=50.0, x1=500.0, y1=62.0),
+                    raw_text=docx_raw_text,
+                    lines=[],
+                )
+            ]
+
         sp_page = SpatialPage(
             page_number=1,
             width=612.0,
-            height=792.0,
-            bbox=BoundingBox(x0=0.0, y0=0.0, x1=612.0, y1=792.0),
-            blocks=[sp_block],
-            raw_text=parsed.raw_text,
+            height=max(792.0, current_y + 50.0),
+            bbox=BoundingBox(x0=0.0, y0=0.0, x1=612.0, y1=max(792.0, current_y + 50.0)),
+            blocks=sp_blocks,
+            raw_text=docx_raw_text,
         )
         spatial_doc = SpatialDocument(
             filename=filename,
             total_pages=1,
             pages=[sp_page],
-            raw_text=parsed.raw_text,
+            raw_text=docx_raw_text,
             extraction_mode="docx_spatial",
         )
         return DocumentRoutingResult(
             document_type=DocumentType.DOCX,
             is_scanned=False,
-            native_word_count=len(words),
+            native_word_count=all_words_count,
             total_pages=1,
             needs_ocr=False,
             spatial_document=spatial_doc,

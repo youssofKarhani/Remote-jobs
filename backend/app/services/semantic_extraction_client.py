@@ -504,6 +504,8 @@ def heuristic_fallback_extract(
             return "projects"
         return "unknown"
 
+    unassigned_blocks: List[SourceBlock] = []
+
     for block in layout_doc.source_blocks:
         if block.region_type == "header":
             continue
@@ -515,8 +517,66 @@ def heuristic_fallback_extract(
         else:
             if current_section:
                 section_blocks.append(block)
+            else:
+                unassigned_blocks.append(block)
 
     _flush_section()
+
+    # Process unassigned blocks (e.g. skills or general content not preceded by an explicit heading)
+    for ub in unassigned_blocks:
+        tokens = [t.strip() for t in re.split(r"[,•|\n]+", ub.text) if t.strip()]
+        is_skill_list = (len(tokens) >= 2 and all(len(t) < 40 for t in tokens)) or any(
+            t.lower() in ("python", "javascript", "typescript", "react", "fastapi", "docker", "kubernetes", "aws", "postgresql", "sql", "git", "linux", "go", "java")
+            for t in tokens
+        )
+        if is_skill_list:
+            for token in tokens:
+                if len(token) <= 40:
+                    skills.append(
+                        SemanticSkill(
+                            raw_value=token,
+                            category="technical",
+                            provenance=ProvenanceMetadata(
+                                source_document_id=doc_id,
+                                source_pages=[ub.page],
+                                source_block_ids=[ub.id],
+                                raw_text=token,
+                                raw_value=token,
+                                extraction_method="layout_heuristic",
+                                extraction_confidence=0.75,
+                            ),
+                        )
+                    )
+        else:
+            unknown_sections.append(
+                UnknownSection(
+                    section_type="unknown",
+                    heading="Unclassified Content",
+                    items=[
+                        UnknownSectionItem(
+                            raw_text=ub.text,
+                            provenance=ProvenanceMetadata(
+                                source_document_id=doc_id,
+                                source_pages=[ub.page],
+                                source_block_ids=[ub.id],
+                                raw_text=ub.text,
+                                raw_value=ub.text,
+                                extraction_method="layout_heuristic",
+                                extraction_confidence=0.7,
+                            ),
+                        )
+                    ],
+                    provenance=ProvenanceMetadata(
+                        source_document_id=doc_id,
+                        source_pages=[ub.page],
+                        source_block_ids=[ub.id],
+                        raw_text=ub.text,
+                        raw_value=ub.text,
+                        extraction_method="layout_heuristic",
+                        extraction_confidence=0.7,
+                    ),
+                )
+            )
 
     return CanonicalSemanticCV(
         source_document_id=doc_id,
