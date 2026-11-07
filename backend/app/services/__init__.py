@@ -11,6 +11,15 @@ from app.services.provenance_validator import (
     validate_canonical_cv,
     validate_entity_provenance,
 )
+from app.services.semantic_extraction_client import (
+    ExtractionConfig,
+    SemanticExtractionClient,
+    SemanticExtractionError,
+    SemanticExtractionResult,
+    build_source_blocks_prompt_context,
+    heuristic_fallback_extract,
+    parse_canonical_semantic_cv_json,
+)
 from app.services.cv_extraction_service import cv_extraction_service, CVExtractionService
 from app.services.evidence_validation import (
     EvidenceValidationError,
@@ -40,6 +49,13 @@ __all__ = [
     "ProvenanceErrorCode",
     "CanonicalCVValidationReport",
     "EntityValidationResult",
+    "SemanticExtractionClient",
+    "ExtractionConfig",
+    "SemanticExtractionResult",
+    "SemanticExtractionError",
+    "heuristic_fallback_extract",
+    "parse_canonical_semantic_cv_json",
+    "build_source_blocks_prompt_context",
     "cv_extraction_service",
     "CVExtractionService",
     "EvidenceValidationError",

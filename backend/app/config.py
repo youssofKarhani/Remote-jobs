@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     LLM_MAX_RETRIES: int = 2
     LLM_FALLBACK_TO_HEURISTICS: bool = True
 
+    # Dedicated CV Extraction LLM Service (Phase 5/6: Isolated Ollama Qwen Service)
+    CV_EXTRACTION_LLM_BASE_URL: str = "http://localhost:11434"
+    CV_EXTRACTION_LLM_MODEL: str = "qwen3:1.7b"
+    CV_EXTRACTION_LLM_ENABLED: bool = False
+    CV_EXTRACTION_LLM_TIMEOUT_SECONDS: float = 90.0
+    CV_EXTRACTION_LLM_MAX_RETRIES: int = 2
+
     # Orchestrator / AWS Control Plane Infrastructure (Port 8000 exposed on EC2 Control Plane in eu-north-1)
     ORCHESTRATOR_URL: str = "http://13.60.213.205:8000"
     ORCHESTRATOR_POLL_INTERVAL_SECONDS: float = 0.5
