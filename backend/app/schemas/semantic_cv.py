@@ -77,11 +77,25 @@ class RawNormalizedValue(BaseModel):
         default=None,
         description="Canonical or normalized form (strictly null until deterministic normalization phase)"
     )
+    confidence: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Normalization confidence score between 0.0 and 1.0"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional normalization metadata"
+    )
 
     @classmethod
     def from_raw(cls, raw: str) -> "RawNormalizedValue":
         """Factory creating an unnormalized value pairing."""
         return cls(raw_value=raw, normalized_value=None)
+
+    def is_normalized(self) -> bool:
+        """Return True if this value has been populated with a normalized form."""
+        return self.normalized_value is not None
 
 
 class SemanticBaseEntity(BaseModel):
@@ -90,6 +104,10 @@ class SemanticBaseEntity(BaseModel):
 
     provenance: ProvenanceMetadata = Field(
         description="Traceable audit trail tying this entity to source blocks"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional semantic or normalization metadata"
     )
 
 

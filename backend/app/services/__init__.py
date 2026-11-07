@@ -11,6 +11,12 @@ from app.services.provenance_validator import (
     validate_canonical_cv,
     validate_entity_provenance,
 )
+from app.services.normalization import (
+    DocumentQualityScore,
+    NormalizedSemanticCVResult,
+    ValidationWarning,
+    normalize_canonical_cv,
+)
 from app.services.semantic_extraction_client import (
     ExtractionConfig,
     SemanticExtractionClient,
@@ -49,6 +55,10 @@ __all__ = [
     "ProvenanceErrorCode",
     "CanonicalCVValidationReport",
     "EntityValidationResult",
+    "normalize_canonical_cv",
+    "NormalizedSemanticCVResult",
+    "DocumentQualityScore",
+    "ValidationWarning",
     "SemanticExtractionClient",
     "ExtractionConfig",
     "SemanticExtractionResult",
