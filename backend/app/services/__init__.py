@@ -17,6 +17,19 @@ from app.services.normalization import (
     ValidationWarning,
     normalize_canonical_cv,
 )
+from app.services.document_router import (
+    DocumentRoutingResult,
+    DocumentType,
+    inspect_pdf_text_density,
+    route_and_parse_document,
+    sniff_document_type,
+)
+from app.services.ocr_service import (
+    MockOCREngine,
+    OCRExtractionError,
+    extract_spatial_document_with_ocr,
+    is_ocr_available,
+)
 from app.services.semantic_extraction_client import (
     ExtractionConfig,
     SemanticExtractionClient,
@@ -59,6 +72,15 @@ __all__ = [
     "NormalizedSemanticCVResult",
     "DocumentQualityScore",
     "ValidationWarning",
+    "DocumentType",
+    "DocumentRoutingResult",
+    "sniff_document_type",
+    "inspect_pdf_text_density",
+    "route_and_parse_document",
+    "OCRExtractionError",
+    "is_ocr_available",
+    "extract_spatial_document_with_ocr",
+    "MockOCREngine",
     "SemanticExtractionClient",
     "ExtractionConfig",
     "SemanticExtractionResult",
