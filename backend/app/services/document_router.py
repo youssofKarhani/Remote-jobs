@@ -169,42 +169,73 @@ def route_and_parse_document(
     if doc_type == DocumentType.PLAIN_TEXT:
         text_content = file_bytes.decode("utf-8", errors="replace")
         from app.schemas.spatial import BoundingBox, SpatialBlock, SpatialLine, SpatialPage, SpatialWord
-        
-        words = text_content.split()
-        sp_words = [
-            SpatialWord(
-                word_id=f"w_{i}",
-                line_id="line_0",
+
+        raw_lines = text_content.splitlines()
+        sp_blocks: List[SpatialBlock] = []
+        all_words_count = 0
+        current_y = 50.0
+
+        for b_idx, raw_line in enumerate(raw_lines):
+            line_str = raw_line.strip()
+            if not line_str:
+                current_y += 15.0
+                continue
+
+            line_words = line_str.split()
+            all_words_count += len(line_words)
+            sp_words = [
+                SpatialWord(
+                    word_id=f"p1_b{b_idx}_l0_w{w_idx}",
+                    line_id=f"p1_b{b_idx}_l0",
+                    block_id=f"p1_b{b_idx}",
+                    page=1,
+                    text=w,
+                    x0=50.0 + (w_idx * 10.0),
+                    y0=current_y,
+                    x1=58.0 + (w_idx * 10.0),
+                    y1=current_y + 12.0,
+                    font_size=12.0 if line_str.isupper() else 10.0,
+                    is_bold=line_str.isupper(),
+                )
+                for w_idx, w in enumerate(line_words)
+            ]
+            sp_line = SpatialLine(
+                line_id=f"p1_b{b_idx}_l0",
+                block_id=f"p1_b{b_idx}",
                 page=1,
-                text=w,
-                x0=50.0 + (i * 10),
-                y0=50.0,
-                x1=60.0 + (i * 10),
-                y1=62.0,
+                bbox=BoundingBox(x0=50.0, y0=current_y, x1=500.0, y1=current_y + 12.0),
+                text=line_str,
+                words=sp_words,
+                font_size=12.0 if line_str.isupper() else 10.0,
+                is_bold=line_str.isupper(),
             )
-            for i, w in enumerate(words)
-        ]
-        sp_line = SpatialLine(
-            line_id="line_0",
-            block_id="block_0",
-            page=1,
-            bbox=BoundingBox(x0=50.0, y0=50.0, x1=500.0, y1=62.0),
-            text=text_content,
-            words=sp_words,
-        )
-        sp_block = SpatialBlock(
-            block_id="block_0",
-            page=1,
-            bbox=BoundingBox(x0=50.0, y0=50.0, x1=500.0, y1=62.0),
-            raw_text=text_content,
-            lines=[sp_line],
-        )
+            sp_block = SpatialBlock(
+                block_id=f"p1_b{b_idx}",
+                page=1,
+                bbox=BoundingBox(x0=50.0, y0=current_y, x1=500.0, y1=current_y + 12.0),
+                raw_text=line_str,
+                lines=[sp_line],
+            )
+            sp_blocks.append(sp_block)
+            current_y += 20.0
+
+        if not sp_blocks:
+            sp_blocks = [
+                SpatialBlock(
+                    block_id="p1_b0",
+                    page=1,
+                    bbox=BoundingBox(x0=50.0, y0=50.0, x1=500.0, y1=62.0),
+                    raw_text=text_content,
+                    lines=[],
+                )
+            ]
+
         sp_page = SpatialPage(
             page_number=1,
             width=612.0,
-            height=792.0,
-            bbox=BoundingBox(x0=0.0, y0=0.0, x1=612.0, y1=792.0),
-            blocks=[sp_block],
+            height=max(792.0, current_y + 50.0),
+            bbox=BoundingBox(x0=0.0, y0=0.0, x1=612.0, y1=max(792.0, current_y + 50.0)),
+            blocks=sp_blocks,
             raw_text=text_content,
         )
         spatial_doc = SpatialDocument(
@@ -217,7 +248,7 @@ def route_and_parse_document(
         return DocumentRoutingResult(
             document_type=DocumentType.PLAIN_TEXT,
             is_scanned=False,
-            native_word_count=len(words),
+            native_word_count=all_words_count,
             total_pages=1,
             needs_ocr=False,
             spatial_document=spatial_doc,

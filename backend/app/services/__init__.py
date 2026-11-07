@@ -30,6 +30,13 @@ from app.services.ocr_service import (
     extract_spatial_document_with_ocr,
     is_ocr_available,
 )
+from app.services.cv_benchmark_runner import (
+    BenchmarkCorpusItem,
+    BenchmarkExecutionMetrics,
+    BenchmarkSuiteSummary,
+    CVBenchmarkRunner,
+    get_standard_benchmark_corpus,
+)
 from app.services.semantic_extraction_client import (
     ExtractionConfig,
     SemanticExtractionClient,
@@ -81,6 +88,11 @@ __all__ = [
     "is_ocr_available",
     "extract_spatial_document_with_ocr",
     "MockOCREngine",
+    "CVBenchmarkRunner",
+    "get_standard_benchmark_corpus",
+    "BenchmarkCorpusItem",
+    "BenchmarkExecutionMetrics",
+    "BenchmarkSuiteSummary",
     "SemanticExtractionClient",
     "ExtractionConfig",
     "SemanticExtractionResult",

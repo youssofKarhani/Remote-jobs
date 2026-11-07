@@ -164,7 +164,7 @@ def test_route_plain_text():
     assert res.spatial_document is not None
     assert res.spatial_document.extraction_mode == "plain_text_spatial"
     assert "Jane Doe" in res.spatial_document.raw_text
-    assert len(res.spatial_document.pages[0].blocks) == 1
+    assert len(res.spatial_document.pages[0].blocks) == 3
 
 
 def test_route_empty_document_raises():

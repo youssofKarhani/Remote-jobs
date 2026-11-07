@@ -11,10 +11,10 @@ from app.schemas.layout import HeadingCandidate
 
 # Canonical Section Heading Regexes (Level 1)
 PRIMARY_SECTION_PATTERNS = [
-    re.compile(r"^(?:work\s+)?experience|employment(?:\s+history)?|career(?:\s+history)?|professional\s+experience$", re.I),
-    re.compile(r"^education(?:al\s+background)?|academic\s+background|qualifications$", re.I),
-    re.compile(r"^(?:technical\s+|core\s+)?skills(?:\s*(&|and|\+)\s*(?:tools|technologies|competencies))?|technologies|expertise|competencies$", re.I),
-    re.compile(r"^languages?(?:\s+spoken)?|spoken\s+languages?$", re.I),
+    re.compile(r"^(?:work\s+)?experience|employment(?:\s+history)?|career(?:\s+history)?|professional\s+experience|berufserfahrung$", re.I),
+    re.compile(r"^education(?:al\s+background)?|academic\s+background|qualifications|ausbildung$", re.I),
+    re.compile(r"^(?:technical\s+|core\s+)?skills(?:\s*(&|and|\+)\s*(?:tools|technologies|competencies))?|technologies|expertise|competencies|kenntnisse|f\xc3\xa4higkeiten|f\xe4higkeiten$", re.I),
+    re.compile(r"^languages?(?:\s+spoken)?|spoken\s+languages?|sprachen$", re.I),
     re.compile(r"^(?:courses\s*(&|and|\+)\s*)?certifications?|certificates?|licenses(?:\s*(&|and|\+)\s*certifications?)?|courses(?:\s*(&|and|\+)\s*training)?$", re.I),
     re.compile(r"^(?:key\s+|selected\s+|personal\s+)?projects?|portfolio$", re.I),
     re.compile(r"^contact(?:\s+information|\s+details)?|personal\s+details?$", re.I),

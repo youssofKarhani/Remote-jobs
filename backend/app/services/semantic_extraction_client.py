@@ -445,13 +445,13 @@ def heuristic_fallback_extract(
     # Map heading texts to standard section types
     def _classify_heading(text: str) -> str:
         t = text.lower()
-        if any(k in t for k in ("experience", "employment", "work history", "career")):
+        if any(k in t for k in ("experience", "employment", "work history", "career", "berufserfahrung")):
             return "experience"
-        if any(k in t for k in ("education", "academic", "university", "degree")):
+        if any(k in t for k in ("education", "academic", "university", "degree", "ausbildung")):
             return "education"
-        if any(k in t for k in ("skill", "technologies", "competencies", "tech stack")):
+        if any(k in t for k in ("skill", "technologies", "competencies", "tech stack", "kenntnisse", "fähigkeiten")):
             return "skills"
-        if any(k in t for k in ("language", "languages")):
+        if any(k in t for k in ("language", "languages", "sprachen")):
             return "languages"
         if any(k in t for k in ("certificate", "certification", "credentials")):
             return "certifications"
