@@ -56,39 +56,69 @@ async def upload_cv_document(
             detail="File size exceeds maximum 15MB limit.",
         )
 
-    try:
-        parsed_doc = parse_document_detailed(contents, filename)
-        raw_text = parsed_doc.raw_text
-        cleaned_text = parsed_doc.cleaned_text
-    except EmptyDocumentError as e:
-        _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(e),
-        )
-    except UnsupportedFileFormatError as e:
-        _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e),
-        )
-    except DocumentParsingError as e:
-        _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Failed to parse document: {str(e)}",
-        )
+    from app.config import settings
 
-    _cv_task_store[task_id]["progress_percent"] = 60
-    _cv_task_store[task_id]["message"] = "Extracting evidence bank entities..."
+    if settings.CV_HARDENED_PIPELINE_ENABLED:
+        try:
+            summary = await cv_extraction_service.extract_hardened_document_and_persist(
+                db=db,
+                user=current_user,
+                file_bytes=contents,
+                filename=filename,
+                replace_existing=replace_existing,
+            )
+        except EmptyDocumentError as e:
+            _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e),
+            )
+        except UnsupportedFileFormatError as e:
+            _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+        except DocumentParsingError as e:
+            _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Failed to parse document: {str(e)}",
+            )
+    else:
+        try:
+            parsed_doc = parse_document_detailed(contents, filename)
+            raw_text = parsed_doc.raw_text
+            cleaned_text = parsed_doc.cleaned_text
+        except EmptyDocumentError as e:
+            _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e),
+            )
+        except UnsupportedFileFormatError as e:
+            _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
+        except DocumentParsingError as e:
+            _cv_task_store[task_id] = {"status": "failed", "progress_percent": 0, "message": str(e), "user_id": str(current_user.id)}
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Failed to parse document: {str(e)}",
+            )
 
-    summary = await cv_extraction_service.extract_and_persist(
-        db=db,
-        user=current_user,
-        raw_text=raw_text,
-        replace_existing=replace_existing,
-        cleaned_text=cleaned_text,
-    )
+        _cv_task_store[task_id]["progress_percent"] = 60
+        _cv_task_store[task_id]["message"] = "Extracting evidence bank entities..."
+
+        summary = await cv_extraction_service.extract_and_persist(
+            db=db,
+            user=current_user,
+            raw_text=raw_text,
+            replace_existing=replace_existing,
+            cleaned_text=cleaned_text,
+        )
 
     _cv_task_store[task_id] = {
         "status": "completed",
@@ -130,12 +160,23 @@ async def parse_raw_cv_text(
     }
 
     effective_replace = payload.replace_existing if payload.replace_existing is not None else replace_existing
-    summary = await cv_extraction_service.extract_and_persist(
-        db=db,
-        user=current_user,
-        raw_text=payload.text.strip(),
-        replace_existing=effective_replace,
-    )
+    from app.config import settings
+
+    if settings.CV_HARDENED_PIPELINE_ENABLED:
+        summary = await cv_extraction_service.extract_hardened_document_and_persist(
+            db=db,
+            user=current_user,
+            file_bytes=payload.text.strip().encode("utf-8"),
+            filename="plain_text_input.txt",
+            replace_existing=effective_replace,
+        )
+    else:
+        summary = await cv_extraction_service.extract_and_persist(
+            db=db,
+            user=current_user,
+            raw_text=payload.text.strip(),
+            replace_existing=effective_replace,
+        )
 
     _cv_task_store[task_id] = {
         "status": "completed",

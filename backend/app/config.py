@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     CV_EXTRACTION_LLM_ENABLED: bool = False
     CV_EXTRACTION_LLM_TIMEOUT_SECONDS: float = 90.0
     CV_EXTRACTION_LLM_MAX_RETRIES: int = 2
+    CV_HARDENED_PIPELINE_ENABLED: bool = True
 
     # Orchestrator / AWS Control Plane Infrastructure (Port 8000 exposed on EC2 Control Plane in eu-north-1)
     ORCHESTRATOR_URL: str = "http://13.60.213.205:8000"

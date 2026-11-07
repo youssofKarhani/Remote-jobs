@@ -384,7 +384,7 @@ class CanonicalSemanticCV(BaseModel):
             ],
             skills=[
                 ExtractedSkill(
-                    name=s.raw_value,
+                    name=s.normalized_value or s.raw_value,
                     category=s.category or "tools",
                     proficiency=s.proficiency,
                     years_of_experience=s.years_of_experience,

@@ -53,11 +53,122 @@ class CVExtractionService:
         replace_existing: bool = False,
         cleaned_text: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Extract entities from raw CV text and persist into candidate's Evidence Bank."""
+        """Extract entities from raw CV text and persist into candidate's Evidence Bank (Legacy Path)."""
         draft: ExtractedEvidenceBankDraft = await self.ai.extract_cv_to_evidence_bank(raw_text)
         if cleaned_text and not draft.cleaned_cv_text:
             draft.cleaned_cv_text = cleaned_text
 
+        return self._persist_draft_to_db(
+            db=db,
+            user=user,
+            draft=draft,
+            raw_text=raw_text,
+            replace_existing=replace_existing,
+        )
+
+    async def extract_hardened_document_and_persist(
+        self,
+        db: Session,
+        user: User,
+        file_bytes: bytes,
+        filename: str = "resume.pdf",
+        replace_existing: bool = False,
+    ) -> Dict[str, Any]:
+        """Ingest document through the full hardened CV pipeline (Phases 1-8) and persist."""
+        from app.config import settings
+        from app.services.document_parser import DocumentParsingError
+        from app.services.document_router import route_and_parse_document
+        from app.services.layout import reconstruct_reading_order
+        from app.services.semantic_extraction_client import (
+            ExtractionConfig,
+            SemanticExtractionClient,
+            heuristic_fallback_extract,
+        )
+        from app.services.provenance_validator import validate_canonical_cv
+        from app.services.normalization import normalize_canonical_cv
+
+        # 1. Document Routing & Sniffing (Native PDF, Scanned OCR, DOCX, Plain text)
+        routing_res = route_and_parse_document(file_bytes, filename=filename, enable_ocr=True)
+        if not routing_res.spatial_document:
+            raise DocumentParsingError(f"Document routing failed: {routing_res.error or 'No spatial document produced'}")
+
+        # 2. Layout Reconstruction & Reading Order
+        layout_doc = reconstruct_reading_order(routing_res.spatial_document)
+
+        # 3. Semantic Extraction: Dedicated Ollama / Qwen Client or Transparent Fallback
+        canonical_cv = None
+        fallback_used = False
+        fallback_reason = None
+
+        if settings.CV_EXTRACTION_LLM_ENABLED:
+            client = SemanticExtractionClient(
+                config=ExtractionConfig(
+                    base_url=settings.CV_EXTRACTION_LLM_BASE_URL,
+                    model=settings.CV_EXTRACTION_LLM_MODEL,
+                    timeout_seconds=settings.CV_EXTRACTION_LLM_TIMEOUT_SECONDS,
+                )
+            )
+            res = await client.extract_canonical_cv(layout_doc, document_id=filename)
+            if res.success and res.canonical_cv:
+                canonical_cv = res.canonical_cv
+                fallback_used = res.fallback_used
+                fallback_reason = res.fallback_reason
+
+        if canonical_cv is None:
+            # Deterministic heuristic fallback with transparent logging (Rule 10)
+            canonical_cv = heuristic_fallback_extract(layout_doc, document_id=filename)
+            fallback_used = True
+            fallback_reason = "Dedicated Ollama LLM disabled or unreachable; executed deterministic heuristic fallback."
+
+        # 4. Strict Block Provenance Validation
+        valid_block_ids = {b.id for b in layout_doc.source_blocks}
+        prov_report = validate_canonical_cv(canonical_cv, valid_block_ids=valid_block_ids)
+
+        # 5. Normalization, Validation Warnings, and Quality Scoring
+        norm_res = normalize_canonical_cv(canonical_cv)
+        normalized_cv = norm_res.cv
+        quality_score = norm_res.quality_score.overall_score
+
+        # 6. Bridge into Evidence Bank Draft
+        draft = normalized_cv.to_evidence_bank_draft()
+        raw_text = routing_res.spatial_document.raw_text
+
+        # 7. Persist to Candidate Profile & Evidence Bank with Stable IDs
+        summary = self._persist_draft_to_db(
+            db=db,
+            user=user,
+            draft=draft,
+            raw_text=raw_text,
+            replace_existing=replace_existing,
+        )
+
+        # Enrich summary with hardened pipeline audit metadata
+        summary.update({
+            "hardened_pipeline": True,
+            "document_type": routing_res.document_type.value,
+            "is_scanned": routing_res.is_scanned,
+            "ocr_used": routing_res.ocr_used,
+            "ocr_engine": routing_res.ocr_engine,
+            "source_blocks_count": len(layout_doc.source_blocks),
+            "reading_order_blocks": len(layout_doc.source_blocks),
+            "provenance_valid": prov_report.is_valid,
+            "provenance_errors_count": len(prov_report.rejected_claims),
+            "quality_score": round(quality_score, 2),
+            "fallback_used": fallback_used,
+            "fallback_reason": fallback_reason,
+            "warnings_count": len(norm_res.warnings),
+        })
+        return summary
+
+    def _persist_draft_to_db(
+        self,
+        db: Session,
+        user: User,
+        draft: ExtractedEvidenceBankDraft,
+        raw_text: str,
+        replace_existing: bool = False,
+    ) -> Dict[str, Any]:
+        """Persist structured evidence bank draft into database with stable ID sequencing."""
         # 1. Update or create CandidateProfile
         profile = db.query(CandidateProfile).filter(CandidateProfile.user_id == user.id).first()
         if not profile:

@@ -233,6 +233,10 @@ def heuristic_fallback_extract(
     email_val = None
     phone_val = None
 
+    from app.services.document_parser import reconstruct_broken_urls
+    all_doc_text = "\n".join(b.text for b in layout_doc.source_blocks)
+    cleaned_doc_text = reconstruct_broken_urls(all_doc_text)
+
     if header_text:
         lines = [l.strip() for l in header_text.split("\n") if l.strip()]
         if lines:
@@ -248,10 +252,27 @@ def heuristic_fallback_extract(
         if phone_match and not re.match(r"^\d{4}\s*-\s*\d{4}$", phone_match.group(0)):
             phone_val = RawNormalizedValue(raw_value=phone_match.group(0))
 
+    if not phone_val:
+        phone_match = re.search(r"(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,9}", cleaned_doc_text)
+        if phone_match and not re.match(r"^\d{4}\s*-\s*\d{4}$", phone_match.group(0)):
+            phone_val = RawNormalizedValue(raw_value=phone_match.group(0).strip())
+
+    linkedin_val = None
+    li_match = re.search(r"https?://(?:www\.)?linkedin\.com/in/[\w\-]+", cleaned_doc_text, re.I)
+    if li_match:
+        linkedin_val = RawNormalizedValue(raw_value=li_match.group(0).strip())
+
+    github_val = None
+    gh_match = re.search(r"https?://(?:www\.)?github\.com/[\w\-\.]+", cleaned_doc_text, re.I)
+    if gh_match:
+        github_val = RawNormalizedValue(raw_value=gh_match.group(0).strip())
+
     personal_info = SemanticPersonalInfo(
         full_name=RawNormalizedValue(raw_value=name_str),
         email=email_val,
         phone=phone_val,
+        linkedin_url=linkedin_val,
+        github_url=github_val,
         provenance=ProvenanceMetadata(
             source_document_id=doc_id,
             source_pages=header_pages,
@@ -295,24 +316,48 @@ def heuristic_fallback_extract(
         )
 
         if current_section == "experience":
-            first_line = section_blocks[0].text.split("\n")[0]
-            role = first_line.split(" at ")[0] if " at " in first_line else first_line
-            company = first_line.split(" at ")[1] if " at " in first_line else "Company"
+            first_block = section_blocks[0]
+            first_lines = [l.strip() for l in first_block.text.split("\n") if l.strip()]
+            role_line = first_lines[0] if first_lines else "Software Engineer"
+
+            if " - " in role_line:
+                parts = role_line.split(" - ", 1)
+                company = parts[0].strip()
+                role = parts[1].strip()
+            elif " at " in role_line:
+                parts = role_line.split(" at ", 1)
+                role = parts[0].strip()
+                company = parts[1].strip()
+            else:
+                role = role_line
+                company = "Company"
+
+            bullet_items: List[Tuple[str, SourceBlock]] = []
+            if len(first_lines) > 1:
+                for line in first_lines[1:]:
+                    bullet_items.append((line, first_block))
+            for b in section_blocks[1:]:
+                blines = [l.strip() for l in b.text.split("\n") if l.strip()]
+                for bl in blines:
+                    bullet_items.append((bl, b))
+
+            if not bullet_items:
+                bullet_items = [(first_block.text, first_block)]
 
             bullets = [
                 SemanticExperienceBullet(
-                    raw_text=b.text,
+                    raw_text=btxt,
                     provenance=ProvenanceMetadata(
                         source_document_id=doc_id,
-                        source_pages=[b.page],
-                        source_block_ids=[b.id],
-                        raw_text=b.text,
-                        raw_value=b.text,
+                        source_pages=[src_b.page],
+                        source_block_ids=[src_b.id],
+                        raw_text=btxt,
+                        raw_value=btxt,
                         extraction_method="layout_heuristic",
                         extraction_confidence=0.75,
                     ),
                 )
-                for b in section_blocks
+                for btxt, src_b in bullet_items
             ]
 
             exp = SemanticExperience(
