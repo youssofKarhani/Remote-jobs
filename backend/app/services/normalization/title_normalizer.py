@@ -114,6 +114,74 @@ def normalize_raw_normalized_degree(val: Optional[RawNormalizedValue]) -> Option
     norm_degree, level, conf = normalize_degree(val.raw_value)
     val.normalized_value = norm_degree
     val.confidence = conf
+    if not val.metadata:
+        val.metadata = {}
     if level:
         val.metadata["degree_level"] = level
+    val.metadata["normalization_method"] = "academic_degree_canonicalization"
+    val.metadata["normalization_confidence"] = conf
     return val
+
+
+# Academic Institution Acronyms and Aliases
+INSTITUTION_TAXONOMY = {
+    "tu berlin": "Technical University of Berlin",
+    "tub": "Technical University of Berlin",
+    "tu munich": "Technical University of Munich",
+    "tum": "Technical University of Munich",
+    "lmu": "Ludwig Maximilian University of Munich",
+    "lmu munich": "Ludwig Maximilian University of Munich",
+    "mit": "Massachusetts Institute of Technology",
+    "eth zurich": "ETH Zurich",
+    "eth": "ETH Zurich",
+    "epfl": "École Polytechnique Fédérale de Lausanne",
+    "stanford": "Stanford University",
+    "harvard": "Harvard University",
+    "oxford": "University of Oxford",
+    "cambridge": "University of Cambridge",
+    "ucla": "University of California, Los Angeles",
+    "uc berkeley": "University of California, Berkeley",
+    "caltech": "California Institute of Technology",
+}
+
+
+def normalize_institution(institution_raw: Optional[str]) -> Tuple[Optional[str], float, str]:
+    """Normalize a raw university or educational institution string.
+
+    Returns:
+        (canonical_institution, confidence, normalization_method)
+    """
+    if not institution_raw or not institution_raw.strip():
+        return None, 0.0, "none"
+
+    raw = institution_raw.strip()
+    cleaned_lower = re.sub(r"[^\w\s]", "", raw.lower()).strip()
+
+    if cleaned_lower in INSTITUTION_TAXONOMY:
+        return INSTITUTION_TAXONOMY[cleaned_lower], 0.98, "known_academic_institution_alias"
+
+    # Substring check for standard university patterns
+    for alias, canonical in INSTITUTION_TAXONOMY.items():
+        if alias in cleaned_lower.split():
+            return canonical, 0.95, "known_academic_institution_alias"
+
+    # Clean redundant punctuation and spaces
+    normalized = re.sub(r"[,;:\.\-]+$", "", raw).strip()
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized, 0.85, "verbatim_cleaned"
+
+
+def normalize_raw_normalized_institution(val: Optional[RawNormalizedValue]) -> Optional[RawNormalizedValue]:
+    """Normalize an institution RawNormalizedValue in-place, preserving raw_value."""
+    if not val or not val.raw_value:
+        return val
+
+    norm_inst, conf, method = normalize_institution(val.raw_value)
+    val.normalized_value = norm_inst
+    val.confidence = conf
+    if not val.metadata:
+        val.metadata = {}
+    val.metadata["normalization_method"] = method
+    val.metadata["normalization_confidence"] = conf
+    return val
+

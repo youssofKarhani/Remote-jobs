@@ -1,14 +1,20 @@
 """OCR Fallback Extraction Service (Phase 8).
 
-Extracts spatial geometry and text from scanned/rasterized documents using
+Extracts spatial geometry and text from scanned/rasterized documents and images using
 PyMuPDF OCR (Tesseract bindings) or pluggable OCR drivers.
 Produces valid SpatialDocument instances with coordinate bounding boxes.
+
+Supports:
+- Full document scanned PDF OCR
+- Targeted page-by-page OCR for Hybrid PDFs
+- Standalone image CV OCR (PNG, JPEG, TIFF, WEBP)
+- Pluggable MockOCREngine for deterministic CI/CD testing
 """
 
 from dataclasses import dataclass
 import io
 import logging
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol, Set
 
 try:
     import pymupdf
@@ -39,7 +45,11 @@ class OCRExtractionError(DocumentParsingError):
 class OCREngineProtocol(Protocol):
     """Protocol for pluggable or mocked OCR engines."""
 
-    def extract_spatial_pages(self, file_bytes: bytes) -> List[SpatialPage]:
+    def extract_spatial_pages(
+        self,
+        file_bytes: bytes,
+        pages_to_ocr: Optional[List[int]] = None,
+    ) -> List[SpatialPage]:
         ...
 
 
@@ -65,10 +75,19 @@ class MockOCREngine:
     """Mock OCR driver for deterministic unit testing without external Tesseract binaries."""
     mock_pages_words: List[List[Dict[str, Any]]]
 
-    def extract_spatial_pages(self, file_bytes: bytes) -> List[SpatialPage]:
+    def extract_spatial_pages(
+        self,
+        file_bytes: bytes,
+        pages_to_ocr: Optional[List[int]] = None,
+    ) -> List[SpatialPage]:
         pages: List[SpatialPage] = []
+        target_pages: Optional[Set[int]] = set(pages_to_ocr) if pages_to_ocr else None
+
         for page_idx, words_data in enumerate(self.mock_pages_words):
             page_num = page_idx + 1
+            if target_pages and page_num not in target_pages:
+                continue
+
             spatial_words: List[SpatialWord] = []
             lines_map: Dict[int, List[SpatialWord]] = {}
 
@@ -78,6 +97,7 @@ class MockOCREngine:
                 line_idx = w.get("line_idx", 0)
                 line_id = f"ocr_p{page_num}_l{line_idx}"
                 word_id = f"ocr_p{page_num}_w{w_idx}"
+                conf = float(w.get("confidence", 0.95))
 
                 sw = SpatialWord(
                     word_id=word_id,
@@ -91,6 +111,7 @@ class MockOCREngine:
                     font_name="OCR-Engine",
                     font_size=10.0,
                     is_bold=w.get("is_bold", False),
+                    confidence=conf,
                 )
                 spatial_words.append(sw)
                 lines_map.setdefault(line_idx, []).append(sw)
@@ -127,6 +148,7 @@ class MockOCREngine:
                 bbox=BoundingBox(x0=bx0, y0=by0, x1=bx1, y1=by1),
                 raw_text=block_text,
                 lines=spatial_lines,
+                extraction_method="OCR",
             )
 
             pages.append(
@@ -137,6 +159,7 @@ class MockOCREngine:
                     bbox=BoundingBox(x0=0.0, y0=0.0, x1=612.0, y1=792.0),
                     blocks=[block],
                     raw_text=block_text,
+                    extraction_method="OCR",
                 )
             )
 
@@ -147,20 +170,34 @@ def extract_spatial_document_with_ocr(
     file_bytes: bytes,
     filename: str = "scanned.pdf",
     ocr_service: Optional[Any] = None,
+    filetype: str = "pdf",
+    pages_to_ocr: Optional[List[int]] = None,
 ) -> SpatialDocument:
-    """Perform coordinate-aware OCR extraction and produce a valid SpatialDocument."""
+    """Perform coordinate-aware OCR extraction and produce a valid SpatialDocument.
+
+    Supports full PDFs, targeted pages for hybrid PDFs, and standalone images.
+    """
     # 1. Custom / Mock OCR Engine Path
     if ocr_service is not None and hasattr(ocr_service, "extract_spatial_pages"):
         try:
-            pages = ocr_service.extract_spatial_pages(file_bytes)
+            pages = ocr_service.extract_spatial_pages(file_bytes, pages_to_ocr=pages_to_ocr)
             full_text = "\n\f\n".join(p.raw_text for p in pages).strip()
+            mode = "mock_ocr_spatial"
+            if filetype in ("png", "jpg", "jpeg", "tiff", "webp", "image"):
+                mode = "image_ocr_spatial"
+            elif pages_to_ocr:
+                mode = "pdf_hybrid_ocr"
             return SpatialDocument(
                 filename=filename,
                 total_pages=len(pages),
                 pages=pages,
                 raw_text=full_text,
-                extraction_mode="mock_ocr_spatial",
-                metadata={"ocr_engine": type(ocr_service).__name__},
+                extraction_mode=mode,
+                metadata={
+                    "extraction_method": "OCR",
+                    "ocr_engine": type(ocr_service).__name__,
+                    "pages_ocr": pages_to_ocr,
+                },
             )
         except Exception as exc:
             raise OCRExtractionError(f"Mock OCR driver failed: {exc}") from exc
@@ -168,18 +205,22 @@ def extract_spatial_document_with_ocr(
     # 2. Native PyMuPDF OCR Path
     if not is_ocr_available():
         raise OCRExtractionError(
-            f"Document '{filename}' is a scanned rasterized PDF, but the Tesseract OCR engine "
+            f"Document '{filename}' requires OCR, but the Tesseract OCR engine "
             "is not installed or tessdata is unavailable on this system. "
             "Please install Tesseract or upload a vector/text-based PDF."
         )
 
     try:
-        doc = pymupdf.open(stream=file_bytes, filetype="pdf")
+        doc = pymupdf.open(stream=file_bytes, filetype=filetype)
         pages: List[SpatialPage] = []
         raw_doc_text_parts: List[str] = []
+        target_pages: Optional[Set[int]] = set(pages_to_ocr) if pages_to_ocr else None
 
         for page_idx, page in enumerate(doc):
             page_num = page_idx + 1
+            if target_pages and page_num not in target_pages:
+                continue
+
             page_rect = page.rect
             page_w = round(float(page_rect.width), 2)
             page_h = round(float(page_rect.height), 2)
@@ -207,7 +248,7 @@ def extract_spatial_document_with_ocr(
                 )
                 spatial_words.append(sw)
 
-            # Group into lines and blocks
+            # Group words into lines and blocks
             lines_by_id: Dict[str, List[SpatialWord]] = {}
             for sw in spatial_words:
                 lines_by_id.setdefault(sw.line_id, []).append(sw)
@@ -248,6 +289,7 @@ def extract_spatial_document_with_ocr(
                         bbox=BoundingBox(x0=bx0, y0=by0, x1=bx1, y1=by1),
                         raw_text="\n".join(sl.text for sl in blines),
                         lines=blines,
+                        extraction_method="OCR",
                     )
                 )
 
@@ -259,18 +301,29 @@ def extract_spatial_document_with_ocr(
                     bbox=BoundingBox(x0=0.0, y0=0.0, x1=page_w, y1=page_h),
                     blocks=spatial_blocks,
                     raw_text=page_raw.strip(),
+                    extraction_method="OCR",
                 )
             )
 
         doc.close()
         full_text = "\n\f\n".join(raw_doc_text_parts).strip()
+        mode = "pymupdf_ocr_spatial"
+        if filetype in ("png", "jpg", "jpeg", "tiff", "webp", "image"):
+            mode = "image_ocr_spatial"
+        elif pages_to_ocr:
+            mode = "pdf_hybrid_ocr"
+
         return SpatialDocument(
             filename=filename,
             total_pages=len(pages),
             pages=pages,
             raw_text=full_text,
-            extraction_mode="pymupdf_ocr_spatial",
-            metadata={"ocr_engine": "pymupdf_ocr"},
+            extraction_mode=mode,
+            metadata={
+                "extraction_method": "OCR",
+                "ocr_engine": "pymupdf_ocr",
+                "pages_ocr": pages_to_ocr,
+            },
         )
     except Exception as exc:
         raise OCRExtractionError(f"PyMuPDF OCR extraction failed: {exc}") from exc

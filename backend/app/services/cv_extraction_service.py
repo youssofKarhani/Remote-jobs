@@ -79,9 +79,9 @@ class CVExtractionService:
         from app.services.document_parser import DocumentParsingError
         from app.services.document_router import route_and_parse_document
         from app.services.layout import reconstruct_reading_order
-        from app.services.semantic_extraction_client import (
+        from app.services.cv_semantic_extractor import (
+            CVSemanticExtractor,
             ExtractionConfig,
-            SemanticExtractionClient,
             heuristic_fallback_extract,
         )
         from app.services.provenance_validator import validate_canonical_cv
@@ -95,30 +95,37 @@ class CVExtractionService:
         # 2. Layout Reconstruction & Reading Order
         layout_doc = reconstruct_reading_order(routing_res.spatial_document)
 
-        # 3. Semantic Extraction: Dedicated Ollama / Qwen Client or Transparent Fallback
+        # 3. Semantic Extraction: Dedicated Ollama / Qwen Client or Explicit Fallback
         canonical_cv = None
         fallback_used = False
         fallback_reason = None
+        parser_mode = "heuristic_fallback"
+        degraded = True
+        semantic_model_error = None
 
-        if settings.CV_EXTRACTION_LLM_ENABLED:
-            client = SemanticExtractionClient(
-                config=ExtractionConfig(
-                    base_url=settings.CV_EXTRACTION_LLM_BASE_URL,
-                    model=settings.CV_EXTRACTION_LLM_MODEL,
-                    timeout_seconds=settings.CV_EXTRACTION_LLM_TIMEOUT_SECONDS,
-                )
+        client = CVSemanticExtractor(
+            config=ExtractionConfig(
+                base_url=settings.CV_EXTRACTION_LLM_BASE_URL,
+                model=settings.CV_EXTRACTION_LLM_MODEL,
+                enabled=settings.CV_EXTRACTION_LLM_ENABLED,
+                timeout_seconds=settings.CV_EXTRACTION_LLM_TIMEOUT_SECONDS,
             )
-            res = await client.extract_canonical_cv(layout_doc, document_id=filename)
-            if res.success and res.canonical_cv:
-                canonical_cv = res.canonical_cv
-                fallback_used = res.fallback_used
-                fallback_reason = res.fallback_reason
+        )
+        res = await client.extract(layout_doc, document_id=filename)
+        canonical_cv = res.canonical_cv
+        fallback_used = res.fallback_used
+        fallback_reason = res.fallback_reason
+        parser_mode = res.parser_mode
+        degraded = res.degraded
+        semantic_model_error = res.semantic_model_error
 
         if canonical_cv is None:
             # Deterministic heuristic fallback with transparent logging (Rule 10)
             canonical_cv = heuristic_fallback_extract(layout_doc, document_id=filename)
             fallback_used = True
-            fallback_reason = "Dedicated Ollama LLM disabled or unreachable; executed deterministic heuristic fallback."
+            fallback_reason = "Dedicated Ollama LLM produced no document; executed deterministic heuristic fallback."
+            parser_mode = "heuristic_fallback"
+            degraded = True
 
         # 4. Strict Block Provenance Validation
         valid_block_ids = {b.id for b in layout_doc.source_blocks}
@@ -154,6 +161,9 @@ class CVExtractionService:
             "provenance_valid": prov_report.is_valid,
             "provenance_errors_count": len(prov_report.rejected_claims),
             "quality_score": round(quality_score, 2),
+            "parser_mode": parser_mode,
+            "degraded": degraded,
+            "semantic_model_error": semantic_model_error,
             "fallback_used": fallback_used,
             "fallback_reason": fallback_reason,
             "warnings_count": len(norm_res.warnings),

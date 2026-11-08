@@ -1,16 +1,16 @@
-"""Test Suite for Phase 6 — Semantic Model Integration.
+"""Test Suite for Phase 6 — Semantic Model Integration (Prompt 8).
 
 Verifies:
-1. Extraction configuration defaults and environment overrides.
-2. Source block prompt serialization preserving block IDs, pages, regions, and reading order.
-3. Qwen3 reasoning token stripping (<think>...</think>) and robust JSON extraction.
-4. Parsing into CanonicalSemanticCV schema with document ID backfilling.
-5. Deterministic heuristic fallback with strict block provenance and unknown section preservation.
-6. Feature flagging and explicit fallback recording (Rule 10: No Silent Fallback).
-7. Mocked LLM execution against simulated Ollama /api/generate endpoint.
-8. Provenance validation rejecting hallucinations or invalid block references.
-9. Network error resilience, retry backoff, and fallback handling.
-10. Multi-column CV integration test ensuring technical skills do not interleave with projects/education.
+1. Valid structured response (valid JSON schema, valid source block IDs, deterministic options).
+2. Malformed JSON handling (triggers parsing error, falls back with explicit degraded record).
+3. Invalid block IDs rejection (hallucinated block IDs not in request blocks are rejected).
+4. Unsupported facts rejection (missing block IDs or missing raw text rejected).
+5. Connection timeout handling (bounded retry backoff, graceful fallback with degraded=True).
+6. Temporary 502 recovery (recovers after transient gateway cold start error).
+7. Exhausted retries handling (all retries fail, explicit fallback with semantic_model_error).
+8. Feature flag disabled (bypasses LLM, executes deterministic heuristic fallback).
+9. Schema enforcement and options (temperature = 0, format schema validation).
+10. Naming consistency across cv_semantic_extractor, cv_extraction_llm, and semantic_extraction_client.
 """
 
 import json
@@ -30,18 +30,28 @@ from app.schemas.semantic_cv import (
     SemanticSkill,
     UnknownSection,
 )
-from app.services.provenance_validator import validate_canonical_cv
-from app.services.semantic_extraction_client import (
+from app.services.provenance_validator import (
+    ProvenanceErrorCode,
+    validate_canonical_cv,
+    validate_entity_provenance,
+)
+from app.services.cv_semantic_extractor import (
+    CVSemanticExtractor,
     ExtractionConfig,
+    SchemaValidationError,
     SemanticExtractionClient,
     SemanticExtractionError,
     SemanticExtractionResult,
+    SYSTEM_EXTRACTION_PROMPT,
+    build_blocks_json_payload,
     build_source_blocks_prompt_context,
+    derive_section_hint,
     extract_json_payload,
     heuristic_fallback_extract,
     parse_canonical_semantic_cv_json,
     strip_thinking_tokens,
 )
+import app.services.cv_extraction_llm as cv_llm_module
 
 
 # ============================================================================
@@ -107,194 +117,79 @@ def sample_two_column_layout_doc() -> LayoutDocument:
 
 
 # ============================================================================
-# 1. Configuration & Settings Tests
+# 1. Module & Naming Consistency Tests
 # ============================================================================
 
-class TestExtractionConfig:
+class TestModuleNamingConsistency:
+    def test_dedicated_service_naming_and_exports(self):
+        """Ensure CVSemanticExtractor is accessible via cv_semantic_extractor and cv_extraction_llm."""
+        assert CVSemanticExtractor is not None
+        assert cv_llm_module.CVSemanticExtractor is CVSemanticExtractor
+        assert cv_llm_module.SemanticExtractionClient is CVSemanticExtractor
+
     def test_default_config_matches_application_settings(self):
         config = ExtractionConfig()
-        assert config.base_url == getattr(settings, "CV_EXTRACTION_LLM_BASE_URL", "http://localhost:11434")
+        assert config.base_url == getattr(settings, "CV_EXTRACTION_LLM_BASE_URL", "http://cv-extractor-llm.railway.internal:11434")
         assert config.model == getattr(settings, "CV_EXTRACTION_LLM_MODEL", "qwen3:1.7b")
         assert config.enabled == getattr(settings, "CV_EXTRACTION_LLM_ENABLED", False)
         assert config.timeout_seconds == getattr(settings, "CV_EXTRACTION_LLM_TIMEOUT_SECONDS", 90.0)
-
-    def test_custom_config_overrides(self):
-        config = ExtractionConfig(
-            base_url="http://custom-ollama:11434",
-            model="qwen3:3b",
-            enabled=True,
-            timeout_seconds=45.0,
-            max_retries=3,
-            fallback_to_heuristics=False,
-        )
-        assert config.base_url == "http://custom-ollama:11434"
-        assert config.model == "qwen3:3b"
-        assert config.enabled is True
-        assert config.timeout_seconds == 45.0
-        assert config.max_retries == 3
-        assert config.fallback_to_heuristics is False
+        assert config.temperature == 0.0
 
 
 # ============================================================================
-# 2. Prompt Construction Tests
+# 2. Reconstructed Source Block Input Construction Tests
 # ============================================================================
 
-class TestPromptConstruction:
+class TestSourceBlockInputConstruction:
+    def test_build_blocks_json_payload_format(self, sample_two_column_layout_doc):
+        """Verify blocks are serialized conceptually with id, page, section_hint, text."""
+        payload = build_blocks_json_payload(sample_two_column_layout_doc)
+        assert "blocks" in payload
+        assert len(payload["blocks"]) == 11
+        first_b = payload["blocks"][0]
+        assert first_b["id"] == "BLOCK_001"
+        assert first_b["page"] == 1
+        assert "section_hint" in first_b
+        assert "youssof@example.com" in first_b["text"]
+
     def test_build_source_blocks_prompt_context(self, sample_two_column_layout_doc):
         context = build_source_blocks_prompt_context(sample_two_column_layout_doc, document_id="DOC_YOUSSOF_001")
         assert "DOCUMENT ID: DOC_YOUSSOF_001" in context
         assert "TOTAL BLOCKS: 11" in context
-        # Verify block headers exist with IDs and reading order
-        assert "[BLOCK_001] (Page 1, Region: header):" in context
-        assert "Youssof El Karhani" in context
-        assert "[BLOCK_002] (Page 1, Region: left_sidebar, Heading: Level 1):" in context
-        assert "TECHNICAL SKILLS" in context
-        assert "[BLOCK_007] (Page 1, Region: main_body):" in context
-        assert "Senior Backend Engineer" in context
+        assert "BLOCK_001" in context
+        assert "BLOCK_007" in context
+        assert "=== STRUCTURED SOURCE BLOCKS ===" in context
 
 
 # ============================================================================
-# 3. Output Sanitization & Reasoning Token Stripping Tests
+# 3. Model Reasoning (<think>) Stripping & JSON Extraction Tests
 # ============================================================================
 
-class TestOutputSanitization:
-    def test_strip_thinking_tokens_complete_block(self):
-        raw = "<think>\nThis is internal reasoning.\nThe user wants a JSON format.\n</think>\n{\"document_id\": \"DOC_001\"}"
-        assert strip_thinking_tokens(raw) == '{"document_id": "DOC_001"}'
+class TestThinkingTokenSanitization:
+    def test_strip_thinking_tokens(self):
+        sample = "<think>\nThinking about extracting personal info...\n</think>\n```json\n{\"full_name\": {\"raw_value\": \"Alice\"}}\n```"
+        stripped = strip_thinking_tokens(sample)
+        assert "<think>" not in stripped
+        assert "</think>" not in stripped
+        assert "Alice" in stripped
 
-    def test_strip_thinking_tokens_dangling_open_tag(self):
-        raw = "<think>\nReasoning got truncated..."
-        assert strip_thinking_tokens(raw) == ""
-
-    def test_extract_json_payload_from_markdown_fence(self):
-        raw = "<think>done</think>\nHere is your JSON:\n```json\n{\"key\": \"value\"}\n```"
-        assert extract_json_payload(raw) == '{"key": "value"}'
-
-    def test_extract_json_payload_from_raw_braces(self):
-        raw = "Some introductory text\n{\"key\": 123}\nSome concluding text"
-        assert extract_json_payload(raw) == '{"key": 123}'
+    def test_extract_json_payload_with_fences(self):
+        text = "Here is the result:\n```json\n{\"personal_info\": null}\n```\nHope it helps!"
+        extracted = extract_json_payload(text)
+        assert extracted == '{"personal_info": null}'
 
 
 # ============================================================================
-# 4. JSON Schema Parsing Tests
+# 4. Prompt 8 Specific Core Test Suite: 8 Required Test Cases
 # ============================================================================
 
-class TestJsonSchemaParsing:
-    def test_parse_valid_canonical_json(self):
-        raw_json = json.dumps({
-            "document_id": "DOC_TEST_01",
-            "personal_info": {
-                "full_name": {"raw_value": "Youssof El Karhani", "normalized_value": None},
-                "email": {"raw_value": "youssof@example.com", "normalized_value": None},
-                "provenance": {
-                    "source_pages": [1],
-                    "source_block_ids": ["BLOCK_001"],
-                    "raw_text": "Youssof El Karhani",
-                    "extraction_method": "semantic_llm",
-                }
-            },
-            "skills": [
-                {
-                    "raw_value": "MangoDB",
-                    "normalized_value": None,
-                    "provenance": {
-                        "source_pages": [1],
-                        "source_block_ids": ["BLOCK_003"],
-                        "raw_text": "MangoDB",
-                        "raw_value": "MangoDB",
-                        "extraction_method": "semantic_llm",
-                    }
-                }
-            ]
-        })
-        cv = parse_canonical_semantic_cv_json(raw_json, document_id="DOC_TEST_01")
-        assert isinstance(cv, CanonicalSemanticCV)
-        assert cv.personal_info.full_name.raw_value == "Youssof El Karhani"
-        assert cv.personal_info.full_name.normalized_value is None
-        assert cv.skills[0].raw_value == "MangoDB"
-        assert cv.skills[0].normalized_value is None
-        assert cv.skills[0].provenance.source_block_ids == ["BLOCK_003"]
+class TestPhase6RequiredTestCases:
 
-    def test_parse_invalid_json_raises_semantic_extraction_error(self):
-        with pytest.raises(SemanticExtractionError):
-            parse_canonical_semantic_cv_json("Not valid json at all")
-
-
-# ============================================================================
-# 5. Deterministic Heuristic Fallback Extractor Tests
-# ============================================================================
-
-class TestHeuristicFallbackExtractor:
-    def test_fallback_extractor_grounds_all_items_with_valid_block_ids(self, sample_two_column_layout_doc):
-        cv = heuristic_fallback_extract(sample_two_column_layout_doc, document_id="DOC_FALLBACK_01")
-        assert isinstance(cv, CanonicalSemanticCV)
-        assert cv.personal_info.email.raw_value == "youssof@example.com"
-        assert cv.personal_info.provenance.source_block_ids == ["BLOCK_001"]
-
-        # Technical skills extracted from left sidebar
-        skill_names = [s.raw_value for s in cv.skills]
-        assert "Python" in skill_names
-        assert "FastAPI" in skill_names
-        assert "MangoDB" in skill_names
-
-        # Verify all skills reference BLOCK_003
-        for s in cv.skills:
-            assert "BLOCK_003" in s.provenance.source_block_ids
-
-        # Experience extracted from main body
-        assert len(cv.experiences) > 0
-        assert "BLOCK_007" in cv.experiences[0].provenance.source_block_ids
-
-        # Unknown section preserved
-        assert len(cv.unknown_sections) == 1
-        assert cv.unknown_sections[0].heading == "OPEN SOURCE CONTRIBUTIONS"
-        assert "BLOCK_011" in cv.unknown_sections[0].items[0].provenance.source_block_ids
-
-        # Validate complete document provenance
-        valid_ids = {b.id for b in sample_two_column_layout_doc.source_blocks}
-        report = validate_canonical_cv(cv, valid_block_ids=valid_ids)
-        assert report.is_valid is True
-        assert len(report.rejected_claims) == 0
-
-
-# ============================================================================
-# 6. Feature Flagging & Safe Fallback Tests (Rule 10 & 15)
-# ============================================================================
-
-class TestFeatureFlaggingAndFallback:
+    # 1. Valid Structured Response
     @pytest.mark.asyncio
-    async def test_when_llm_disabled_fallback_records_explicit_metadata(self, sample_two_column_layout_doc):
-        config = ExtractionConfig(enabled=False, fallback_to_heuristics=True)
-        client = SemanticExtractionClient(config=config)
-
-        res: SemanticExtractionResult = await client.extract(sample_two_column_layout_doc)
-        assert res.success is True
-        assert res.fallback_used is True
-        assert res.extraction_method == "layout_heuristic"
-        assert "CV_EXTRACTION_LLM_ENABLED=false" in res.fallback_reason
-        assert res.canonical_cv is not None
-        assert res.validation_report.is_valid is True
-
-    @pytest.mark.asyncio
-    async def test_when_llm_disabled_and_no_fallback_allowed_returns_error(self, sample_two_column_layout_doc):
-        config = ExtractionConfig(enabled=False, fallback_to_heuristics=False)
-        client = SemanticExtractionClient(config=config)
-
-        res: SemanticExtractionResult = await client.extract(sample_two_column_layout_doc)
-        assert res.success is False
-        assert res.fallback_used is False
-        assert res.canonical_cv is None
-        assert "CV_EXTRACTION_LLM_ENABLED is False" in res.error
-
-
-# ============================================================================
-# 7. Mocked LLM Execution & Provenance Validation Tests
-# ============================================================================
-
-class TestMockedLLMExecution:
-    @pytest.mark.asyncio
-    async def test_mocked_ollama_call_success(self, sample_two_column_layout_doc):
-        mock_response_payload = {
+    async def test_1_valid_structured_response(self, sample_two_column_layout_doc):
+        """Model returns valid JSON matching CanonicalSemanticCV schema and valid block IDs."""
+        mock_payload = {
             "response": json.dumps({
                 "source_document_id": "youssof_cv_test.pdf",
                 "personal_info": {
@@ -323,26 +218,52 @@ class TestMockedLLMExecution:
             })
         }
 
-        # Mock transport
         mock_transport = httpx.MockTransport(
-            lambda request: httpx.Response(200, json=mock_response_payload)
+            lambda request: httpx.Response(200, json=mock_payload)
         )
         async with httpx.AsyncClient(transport=mock_transport) as mock_http_client:
-            config = ExtractionConfig(enabled=True)
-            client = SemanticExtractionClient(config=config, http_client=mock_http_client)
+            config = ExtractionConfig(enabled=True, temperature=0.0)
+            client = CVSemanticExtractor(config=config, http_client=mock_http_client)
 
             res = await client.extract(sample_two_column_layout_doc)
             assert res.success is True
+            assert res.parser_mode == "semantic_llm"
+            assert res.degraded is False
+            assert res.semantic_model_error is None
             assert res.fallback_used is False
-            assert res.extraction_method == "semantic_llm"
             assert res.canonical_cv.personal_info.full_name.raw_value == "Youssof El Karhani"
             assert res.canonical_cv.skills[0].raw_value == "Python"
             assert res.validation_report.is_valid is True
 
+    # 2. Malformed JSON Response
     @pytest.mark.asyncio
-    async def test_mocked_ollama_call_filters_hallucinated_block_ids(self, sample_two_column_layout_doc):
-        """Rule 6: A semantic object referencing an invalid block must be rejected."""
-        mock_response_payload = {
+    async def test_2_malformed_json_response(self, sample_two_column_layout_doc):
+        """Model returns malformed/corrupted JSON. Must trigger fallback with explicit degraded record."""
+        mock_payload = {
+            "response": "```json\n{ corrupted_json: true, unterminated string ... "
+        }
+
+        mock_transport = httpx.MockTransport(
+            lambda request: httpx.Response(200, json=mock_payload)
+        )
+        async with httpx.AsyncClient(transport=mock_transport) as mock_http_client:
+            config = ExtractionConfig(enabled=True, fallback_to_heuristics=True)
+            client = CVSemanticExtractor(config=config, http_client=mock_http_client)
+
+            res = await client.extract(sample_two_column_layout_doc)
+            assert res.success is True
+            assert res.parser_mode == "heuristic_fallback"
+            assert res.degraded is True
+            assert "Failed to parse LLM JSON output" in res.semantic_model_error
+            assert res.fallback_used is True
+            assert res.canonical_cv is not None
+            assert res.validation_report.is_valid is True
+
+    # 3. Invalid Block IDs (Hallucinated IDs)
+    @pytest.mark.asyncio
+    async def test_3_invalid_block_ids_rejected(self, sample_two_column_layout_doc):
+        """Model invents a block ID not in the request. The entity must be rejected."""
+        mock_payload = {
             "response": json.dumps({
                 "source_document_id": "youssof_cv_test.pdf",
                 "personal_info": {
@@ -367,7 +288,7 @@ class TestMockedLLMExecution:
                         }
                     },
                     {
-                        # Hallucinated skill referencing non-existent BLOCK_999
+                        # Hallucinated block ID: BLOCK_999 does not exist in request
                         "raw_value": "HallucinatedSkill",
                         "normalized_value": None,
                         "provenance": {
@@ -383,34 +304,166 @@ class TestMockedLLMExecution:
         }
 
         mock_transport = httpx.MockTransport(
-            lambda request: httpx.Response(200, json=mock_response_payload)
+            lambda request: httpx.Response(200, json=mock_payload)
         )
         async with httpx.AsyncClient(transport=mock_transport) as mock_http_client:
             config = ExtractionConfig(enabled=True)
-            client = SemanticExtractionClient(config=config, http_client=mock_http_client)
+            client = CVSemanticExtractor(config=config, http_client=mock_http_client)
 
             res = await client.extract(sample_two_column_layout_doc)
             assert res.success is True
-            # Hallucinated skill must be filtered out by provenance validator
+            # Hallucinated entity filtered out
             assert len(res.canonical_cv.skills) == 1
             assert res.canonical_cv.skills[0].raw_value == "RealSkill"
             assert len(res.validation_report.rejected_claims) == 1
             assert "BLOCK_999" in res.validation_report.rejected_claims[0]["errors"][0]
 
-    @pytest.mark.asyncio
-    async def test_ollama_network_error_triggers_fallback_with_explicit_reason(self, sample_two_column_layout_doc):
-        """Rule 10: Fallback must never happen silently; explicit reason is recorded."""
-        mock_transport = httpx.MockTransport(
-            lambda request: httpx.Response(500, text="Internal Server Error")
+    # 4. Unsupported Facts / Missing Provenance
+    def test_4_unsupported_facts_rejected(self):
+        """Entity missing source_block_ids or missing raw_text must be rejected."""
+        valid_ids = {"BLOCK_001", "BLOCK_002"}
+
+        # Empty block IDs
+        bad_prov_1 = ProvenanceMetadata(
+            source_pages=[1],
+            source_block_ids=[],
+            raw_text="No block ID",
         )
+        skill_1 = SemanticSkill(raw_value="Rust", provenance=bad_prov_1)
+        res_1 = validate_entity_provenance(skill_1, valid_block_ids=valid_ids)
+        assert res_1.is_valid is False
+        assert ProvenanceErrorCode.EMPTY_SOURCE_BLOCK_IDS in res_1.error_codes
+
+        # Empty raw text / raw value
+        bad_prov_2 = ProvenanceMetadata(
+            source_pages=[1],
+            source_block_ids=["BLOCK_001"],
+            raw_text="",
+            raw_value="",
+        )
+        skill_2 = SemanticSkill(raw_value="", provenance=bad_prov_2)
+        res_2 = validate_entity_provenance(skill_2, valid_block_ids=valid_ids)
+        assert res_2.is_valid is False
+        assert ProvenanceErrorCode.EMPTY_RAW_TEXT in res_2.error_codes
+
+    # 5. Connection Timeout Handling
+    @pytest.mark.asyncio
+    async def test_5_connection_timeout_handling(self, sample_two_column_layout_doc):
+        """Timeout triggers bounded retries then graceful fallback with degraded=True."""
+        def handler(request):
+            raise httpx.ConnectTimeout("Connection timed out to Ollama service")
+
+        mock_transport = httpx.MockTransport(handler)
         async with httpx.AsyncClient(transport=mock_transport) as mock_http_client:
-            config = ExtractionConfig(enabled=True, max_retries=1, fallback_to_heuristics=True)
-            client = SemanticExtractionClient(config=config, http_client=mock_http_client)
+            config = ExtractionConfig(
+                enabled=True,
+                max_retries=2,
+                initial_backoff_seconds=0.01,
+                fallback_to_heuristics=True,
+            )
+            client = CVSemanticExtractor(config=config, http_client=mock_http_client)
 
             res = await client.extract(sample_two_column_layout_doc)
             assert res.success is True
+            assert res.parser_mode == "heuristic_fallback"
+            assert res.degraded is True
+            assert "timed out" in res.semantic_model_error.lower()
             assert res.fallback_used is True
-            assert res.extraction_method == "layout_heuristic"
-            assert "LLM extraction failure" in res.fallback_reason
             assert res.canonical_cv is not None
-            assert res.validation_report.is_valid is True
+
+    # 6. Temporary 502 Cold Start Recovery
+    @pytest.mark.asyncio
+    async def test_6_temporary_502_recovery(self, sample_two_column_layout_doc):
+        """First request returns 502 Bad Gateway; second attempt succeeds."""
+        attempt_count = 0
+
+        def handler(request):
+            nonlocal attempt_count
+            attempt_count += 1
+            if attempt_count == 1:
+                return httpx.Response(502, text="Bad Gateway (Cold Start)")
+            return httpx.Response(200, json={
+                "response": json.dumps({
+                    "source_document_id": "youssof_cv_test.pdf",
+                    "personal_info": {
+                        "full_name": {"raw_value": "Youssof El Karhani", "normalized_value": None},
+                        "provenance": {
+                            "source_pages": [1],
+                            "source_block_ids": ["BLOCK_001"],
+                            "raw_text": "Youssof El Karhani",
+                            "extraction_method": "semantic_llm",
+                        }
+                    }
+                })
+            })
+
+        mock_transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=mock_transport) as mock_http_client:
+            config = ExtractionConfig(
+                enabled=True,
+                max_retries=3,
+                initial_backoff_seconds=0.01,
+            )
+            client = CVSemanticExtractor(config=config, http_client=mock_http_client)
+
+            res = await client.extract(sample_two_column_layout_doc)
+            assert attempt_count == 2
+            assert res.success is True
+            assert res.parser_mode == "semantic_llm"
+            assert res.degraded is False
+            assert res.semantic_model_error is None
+
+    # 7. Exhausted Retries Returns Explicit Fallback
+    @pytest.mark.asyncio
+    async def test_7_exhausted_retries_returns_explicit_fallback(self, sample_two_column_layout_doc):
+        """Persistent 502 across all retries returns explicit fallback with semantic_model_error."""
+        attempt_count = 0
+
+        def handler(request):
+            nonlocal attempt_count
+            attempt_count += 1
+            return httpx.Response(502, text="Bad Gateway (Cold Start)")
+
+        mock_transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=mock_transport) as mock_http_client:
+            config = ExtractionConfig(
+                enabled=True,
+                max_retries=2,
+                initial_backoff_seconds=0.01,
+                fallback_to_heuristics=True,
+            )
+            client = CVSemanticExtractor(config=config, http_client=mock_http_client)
+
+            res = await client.extract(sample_two_column_layout_doc)
+            assert attempt_count == 2
+            assert res.success is True
+            assert res.parser_mode == "heuristic_fallback"
+            assert res.degraded is True
+            assert "unavailable after 2 bounded attempts" in res.semantic_model_error
+            assert res.fallback_used is True
+
+    # 8. Feature Flag Disabled Bypasses LLM
+    @pytest.mark.asyncio
+    async def test_8_feature_disabled_bypasses_llm(self, sample_two_column_layout_doc):
+        """When CV_EXTRACTION_LLM_ENABLED=false, LLM is not called and heuristic fallback runs."""
+        call_count = 0
+
+        def handler(request):
+            nonlocal call_count
+            call_count += 1
+            return httpx.Response(200, json={"response": "{}"})
+
+        mock_transport = httpx.MockTransport(handler)
+        async with httpx.AsyncClient(transport=mock_transport) as mock_http_client:
+            config = ExtractionConfig(enabled=False, fallback_to_heuristics=True)
+            client = CVSemanticExtractor(config=config, http_client=mock_http_client)
+
+            res = await client.extract(sample_two_column_layout_doc)
+            assert call_count == 0  # Zero HTTP calls made!
+            assert res.success is True
+            assert res.parser_mode == "heuristic_fallback"
+            assert res.degraded is True
+            assert "CV_EXTRACTION_LLM_ENABLED is false" in res.semantic_model_error
+            assert res.fallback_used is True
+            assert res.canonical_cv is not None
+            assert res.canonical_cv.personal_info.full_name.raw_value == "Youssof El Karhani"

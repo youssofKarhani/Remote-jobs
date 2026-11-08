@@ -92,6 +92,7 @@ class SpatialWord(BaseModel):
     font_style: Optional[str] = Field(default="normal", description="Style descriptor: normal, bold, italic, bold_italic")
     weight: Optional[int] = Field(default=None, description="Numeric font weight, e.g. 700 (bold) or 400 (normal)")
     color: Optional[int] = Field(default=None, description="sRGB integer color")
+    confidence: Optional[float] = Field(default=None, description="OCR confidence score between 0.0 and 1.0")
 
     @property
     def bbox(self) -> BoundingBox:
@@ -123,6 +124,7 @@ class SpatialBlock(BaseModel):
     block_type: str = Field(default="text", description="Block type: 'text', 'image', or 'separator'")
     raw_text: str = Field(description="Unmodified raw text of the block")
     lines: List[SpatialLine] = Field(default_factory=list, description="Lines in this block")
+    extraction_method: Optional[str] = Field(default="native", description="Extraction method: 'native' or 'OCR'")
 
     @property
     def words(self) -> List[SpatialWord]:
@@ -144,6 +146,7 @@ class SpatialPage(BaseModel):
     bbox: BoundingBox = Field(description="Page dimensions bounding box")
     blocks: List[SpatialBlock] = Field(default_factory=list, description="Blocks on this page")
     raw_text: str = Field(default="", description="Unmodified raw text of page")
+    extraction_method: Optional[str] = Field(default="native", description="Extraction method: 'native' or 'OCR'")
 
     @property
     def all_lines(self) -> List[SpatialLine]:

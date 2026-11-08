@@ -1,5 +1,9 @@
 """Deterministic Normalization, Validation, and Confidence Module (Phase 7)."""
 
+from app.services.normalization.company_normalizer import (
+    normalize_company_name,
+    normalize_raw_normalized_company,
+)
 from app.services.normalization.confidence_scorer import (
     DocumentQualityScore,
     compute_cv_quality_score,
@@ -24,6 +28,7 @@ from app.services.normalization.language_normalizer import (
 )
 from app.services.normalization.normalization_pipeline import (
     NormalizedSemanticCVResult,
+    deduplicate_cv_records,
     normalize_canonical_cv,
 )
 from app.services.normalization.skill_normalizer import (
@@ -32,8 +37,10 @@ from app.services.normalization.skill_normalizer import (
 )
 from app.services.normalization.title_normalizer import (
     normalize_degree,
+    normalize_institution,
     normalize_job_title,
     normalize_raw_normalized_degree,
+    normalize_raw_normalized_institution,
     normalize_raw_normalized_title,
 )
 from app.services.normalization.validation_rules import (
@@ -57,8 +64,12 @@ __all__ = [
     "split_date_range",
     "normalize_job_title",
     "normalize_degree",
+    "normalize_institution",
     "normalize_raw_normalized_title",
     "normalize_raw_normalized_degree",
+    "normalize_raw_normalized_institution",
+    "normalize_company_name",
+    "normalize_raw_normalized_company",
     "normalize_language_entity",
     "normalize_language_name",
     "normalize_proficiency_cefr",
@@ -66,4 +77,5 @@ __all__ = [
     "normalize_email_string",
     "normalize_phone_number",
     "normalize_url",
+    "deduplicate_cv_records",
 ]
