@@ -223,8 +223,8 @@ export const VERIFICATION_COPY = {
 
   // CV Upload Page
   "cvUpload.authRequired": {
-    verified: "Please sign in or use Demo Mode to extract and persist resume evidence.",
-    neutral: "Please sign in or use Demo Mode to extract and persist resume records.",
+    verified: "Please sign in to save your resume evidence.",
+    neutral: "Please sign in to save your resume records.",
   },
   "cvUpload.persistingStep": {
     verified: "Assigning immutable stable IDs and persisting to Evidence Bank...",

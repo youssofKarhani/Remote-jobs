@@ -13,37 +13,10 @@ import {
   FileCode,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cvApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
 import { ExtractionSummaryData } from "./evidence-bank-step";
+import { CvExtractionPreview } from "@/components/cv/cv-extraction-preview";
+import { useGatedCvExtraction, CvSource, sourceLabel } from "@/lib/use-gated-cv-extraction";
 import { vcopy } from "@/lib/verification-copy";
-
-const SAMPLE_DEMO_CV = `Alex Rivera
-Senior Distributed Systems & Backend Engineer
-Berlin, Germany | alex.rivera@example.com
-
-SUMMARY
-Senior Backend Engineer with 8+ years experience designing high-throughput distributed systems in Python, Go, and PostgreSQL.
-
-EXPERIENCE
-Acme Cloud Systems | Senior Backend Engineer | 2022 - Present
-- Designed high-throughput event processing pipeline using Python, Kafka, and FastAPI processing 45,000 events/second with sub-100ms latency.
-- Architected automated PostgreSQL failover using Patroni, reducing unplanned downtime from 45 min to under 15 seconds.
-- Led migration from monolithic Django service to Kubernetes microservices architecture.
-
-TechCorp Global | Backend Software Engineer | 2019 - 2022
-- Developed REST and gRPC microservices for payments and order fulfillment in Python and PostgreSQL.
-- Implemented Redis caching layer reducing database read load by 60%.
-
-SKILLS
-Python, FastAPI, PostgreSQL, Docker, Kubernetes, Redis, Kafka, AWS, Git, CI/CD, SQLModel
-
-PROJECTS
-Distributed Queue Engine | High-performance job queue with sliding window rate limiting in Python and Redis.
-
-EDUCATION
-B.S. in Computer Science | Technical University of Munich | 2015 - 2019
-`;
 
 interface EvidenceStepProps {
   targetRole: string;
@@ -52,67 +25,29 @@ interface EvidenceStepProps {
 }
 
 export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepProps) {
-  const { isAuthenticated, loginAsDemo } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"upload" | "paste">("upload");
   const [pastedText, setPastedText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const executeExtraction = async (file?: File, text?: string, filename?: string) => {
-    setIsProcessing(true);
-    setErrorMessage(null);
-    setStatusMessage("Initializing extraction pipeline...");
+  const extraction = useGatedCvExtraction((summary, source) => {
+    onComplete({
+      experiencesCount: summary.experiences_extracted || 0,
+      bulletsCount: summary.bullets_extracted || 0,
+      skillsCount: summary.skills_extracted || 0,
+      projectsCount: summary.projects_extracted || 0,
+      educationCount: summary.education_extracted || 0,
+      certificationsCount: summary.certifications_extracted || 0,
+      sourceFilename: sourceLabel(source),
+    });
+  });
+  const isProcessing = extraction.isBusy && !extraction.preview;
+  const errorMessage = extraction.preview ? null : extraction.error;
+  const statusMessage =
+    extraction.phase === "saving" ? "Saving your CV to your profile..." : "Reading your CV...";
 
-    try {
-      // Ensure session is active so backend persists the evidence
-      if (!isAuthenticated) {
-        setStatusMessage("Establishing candidate session...");
-        await loginAsDemo();
-      }
-
-      let res;
-      if (file) {
-        setStatusMessage(`Parsing document ${file.name}...`);
-        res = await cvApi.uploadCV(file);
-      } else if (text && text.trim()) {
-        setStatusMessage("Analyzing resume text through AI Gateway...");
-        res = await cvApi.parseText(text);
-      } else {
-        throw new Error("Please select a file or paste resume text.");
-      }
-
-      setStatusMessage(vcopy("cvUpload.persistingStep"));
-
-      const summary = res?.summary || {
-        experiences_extracted: 0,
-        bullets_extracted: 0,
-        skills_extracted: 0,
-        projects_extracted: 0,
-        education_extracted: 0,
-        certifications_extracted: 0,
-      };
-
-      const finalData: ExtractionSummaryData = {
-        experiencesCount: summary.experiences_extracted || 0,
-        bulletsCount: summary.bullets_extracted || 0,
-        skillsCount: summary.skills_extracted || 0,
-        projectsCount: summary.projects_extracted || 0,
-        educationCount: summary.education_extracted || 0,
-        certificationsCount: summary.certifications_extracted || 0,
-        sourceFilename: filename || (file ? file.name : "Pasted Resume Text"),
-      };
-
-      onComplete(finalData);
-    } catch (err: any) {
-      console.error("Extraction error:", err);
-      setErrorMessage(
-        err?.message || "Failed to parse document. Please check the file format and try again."
-      );
-      setIsProcessing(false);
-    }
+  const executeExtraction = (source: CvSource) => {
+    void extraction.extract(source);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -120,28 +55,24 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const file = e.dataTransfer.files[0];
-      executeExtraction(file, undefined, file.name);
+      executeExtraction({ kind: "file", file });
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      executeExtraction(file, undefined, file.name);
+      executeExtraction({ kind: "file", file });
     }
-  };
-
-  const handleSimulateSample = () => {
-    executeExtraction(undefined, SAMPLE_DEMO_CV, "Alex_Rivera_Sample_CV.txt");
   };
 
   const handlePasteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!pastedText.trim()) {
-      setErrorMessage("Please paste resume text before proceeding.");
+      extraction.setError("Please paste resume text before proceeding.");
       return;
     }
-    executeExtraction(undefined, pastedText, "Pasted Technical Resume");
+    executeExtraction({ kind: "text", text: pastedText, label: "Pasted resume text" });
   };
 
   return (
@@ -180,7 +111,22 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
       {/* Main Container */}
       <div className="relative">
         <AnimatePresence mode="wait">
-          {!isProcessing ? (
+          {extraction.preview ? (
+            <motion.div
+              key="preview-stage"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <CvExtractionPreview
+                result={extraction.preview}
+                phase={extraction.phase}
+                error={extraction.error}
+                onDiscard={extraction.discard}
+                onRetrySave={extraction.retrySave}
+              />
+            </motion.div>
+          ) : !isProcessing ? (
             <motion.div
               key="input-stage"
               initial={{ opacity: 0, scale: 0.98 }}
@@ -320,9 +266,8 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
         </AnimatePresence>
       </div>
 
-      {/* Instant Testing Option for Demo / Quick Verification */}
-      {!isProcessing && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-zinc-900">
+      {!isProcessing && !extraction.preview && (
+        <div className="flex items-center pt-2 border-t border-zinc-900">
           <button
             type="button"
             onClick={onBack}
@@ -330,16 +275,6 @@ export function EvidenceStep({ targetRole, onComplete, onBack }: EvidenceStepPro
           >
             &larr; Back to Target Role
           </button>
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSimulateSample}
-            className="h-10 px-5 text-xs font-mono border-zinc-800 bg-zinc-900/60 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-full gap-2 transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-            <span>Load Sample Technical Resume</span>
-          </Button>
         </div>
       )}
     </motion.div>

@@ -28,7 +28,7 @@ import { JobDetailDialog } from "@/components/jobs/job-detail-dialog";
 import { Job } from "@/types/job";
 
 export default function JobsPage() {
-  const { isAuthenticated, loginAsDemo } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -105,7 +105,7 @@ export default function JobsPage() {
 
   const handleSyncJobs = async () => {
     if (!isAuthenticated) {
-      setSyncStatusMessage("Please sign in or use Demo Mode to trigger external job sync.");
+      setSyncStatusMessage("Please sign in to trigger external job sync.");
       setTimeout(() => setSyncStatusMessage(null), 5000);
       return;
     }
@@ -229,16 +229,12 @@ export default function JobsPage() {
             <div className="space-y-1">
               <h3 className="text-sm font-semibold text-zinc-200">Candidate Session Required</h3>
               <p className="text-xs text-zinc-400 max-w-md mx-auto">
-                Sign in with your candidate account or launch One-Click Demo Mode to view deduplicated jobs, apply deterministic filtering, and run AI compatibility assessments.
+                Sign in or create a free account to view deduplicated jobs, apply deterministic filtering, and run AI compatibility assessments.
               </p>
             </div>
             <div className="flex items-center justify-center gap-3 pt-2">
-              <Button size="sm" onClick={loginAsDemo} className="text-xs gap-1.5 bg-violet-600 hover:bg-violet-500 text-white">
-                <Sparkles className="h-3.5 w-3.5" />
-                One-Click Demo Mode
-              </Button>
               <AuthDialog>
-                <Button size="sm" variant="outline" className="text-xs border-zinc-800 bg-zinc-900/60 text-zinc-300">
+                <Button size="sm" className="text-xs bg-violet-600 hover:bg-violet-500 text-white">
                   Sign In / Register
                 </Button>
               </AuthDialog>

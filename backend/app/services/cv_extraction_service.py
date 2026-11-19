@@ -7,7 +7,7 @@ structured entities to PostgreSQL.
 
 import re
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from app.integrations.llm_ai_service import ai_service
@@ -45,6 +45,17 @@ class CVExtractionService:
                     pass
         return max_idx + 1
 
+    async def extract_legacy_draft(
+        self,
+        raw_text: str,
+        cleaned_text: Optional[str] = None,
+    ) -> ExtractedEvidenceBankDraft:
+        """Extract an Evidence Bank draft from raw CV text without touching the database."""
+        draft: ExtractedEvidenceBankDraft = await self.ai.extract_cv_to_evidence_bank(raw_text)
+        if cleaned_text and not draft.cleaned_cv_text:
+            draft.cleaned_cv_text = cleaned_text
+        return draft
+
     async def extract_and_persist(
         self,
         db: Session,
@@ -54,9 +65,7 @@ class CVExtractionService:
         cleaned_text: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Extract entities from raw CV text and persist into candidate's Evidence Bank (Legacy Path)."""
-        draft: ExtractedEvidenceBankDraft = await self.ai.extract_cv_to_evidence_bank(raw_text)
-        if cleaned_text and not draft.cleaned_cv_text:
-            draft.cleaned_cv_text = cleaned_text
+        draft = await self.extract_legacy_draft(raw_text, cleaned_text=cleaned_text)
 
         return self._persist_draft_to_db(
             db=db,
@@ -66,15 +75,16 @@ class CVExtractionService:
             replace_existing=replace_existing,
         )
 
-    async def extract_hardened_document_and_persist(
+    async def extract_hardened_draft(
         self,
-        db: Session,
-        user: User,
         file_bytes: bytes,
         filename: str = "resume.pdf",
-        replace_existing: bool = False,
-    ) -> Dict[str, Any]:
-        """Ingest document through the full hardened CV pipeline (Phases 1-8) and persist."""
+    ) -> Tuple[ExtractedEvidenceBankDraft, str, Dict[str, Any]]:
+        """Run the full hardened CV pipeline (Phases 1-8) WITHOUT persisting anything.
+
+        Returns the Evidence Bank draft, the raw document text, and pipeline audit metadata.
+        Used directly by the anonymous preview endpoint and by the persisting path below.
+        """
         from app.config import settings
         from app.services.document_parser import DocumentParsingError
         from app.services.document_router import route_and_parse_document
@@ -140,17 +150,7 @@ class CVExtractionService:
         draft = normalized_cv.to_evidence_bank_draft()
         raw_text = routing_res.spatial_document.raw_text
 
-        # 7. Persist to Candidate Profile & Evidence Bank with Stable IDs
-        summary = self._persist_draft_to_db(
-            db=db,
-            user=user,
-            draft=draft,
-            raw_text=raw_text,
-            replace_existing=replace_existing,
-        )
-
-        # Enrich summary with hardened pipeline audit metadata
-        summary.update({
+        audit = {
             "hardened_pipeline": True,
             "document_type": routing_res.document_type.value,
             "is_scanned": routing_res.is_scanned,
@@ -167,7 +167,29 @@ class CVExtractionService:
             "fallback_used": fallback_used,
             "fallback_reason": fallback_reason,
             "warnings_count": len(norm_res.warnings),
-        })
+        }
+        return draft, raw_text, audit
+
+    async def extract_hardened_document_and_persist(
+        self,
+        db: Session,
+        user: User,
+        file_bytes: bytes,
+        filename: str = "resume.pdf",
+        replace_existing: bool = False,
+    ) -> Dict[str, Any]:
+        """Ingest document through the full hardened CV pipeline (Phases 1-8) and persist."""
+        draft, raw_text, audit = await self.extract_hardened_draft(file_bytes, filename=filename)
+
+        # 7. Persist to Candidate Profile & Evidence Bank with Stable IDs
+        summary = self._persist_draft_to_db(
+            db=db,
+            user=user,
+            draft=draft,
+            raw_text=raw_text,
+            replace_existing=replace_existing,
+        )
+        summary.update(audit)
         return summary
 
     def _persist_draft_to_db(

@@ -9,19 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { cvApi } from "@/lib/api";
-import { useAuth } from "@/lib/auth-context";
-import { AuthDialog } from "@/components/auth/auth-dialog";
 import { vcopy } from "@/lib/verification-copy";
+import { CvExtractionPreview } from "@/components/cv/cv-extraction-preview";
+import { useGatedCvExtraction } from "@/lib/use-gated-cv-extraction";
 
 export default function CVUploadPage() {
-  const { isAuthenticated, loginAsDemo } = useAuth();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [rawText, setRawText] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [extractionResult, setExtractionResult] = useState<{
     experiencesCount: number;
     skillsCount: number;
@@ -30,63 +24,36 @@ export default function CVUploadPage() {
     certificationsCount: number;
   } | null>(null);
 
+  const extraction = useGatedCvExtraction((summary) => {
+    setSelectedFile(null);
+    setRawText("");
+    setExtractionResult({
+      experiencesCount: summary.experiences_extracted,
+      skillsCount: summary.skills_extracted,
+      projectsCount: summary.projects_extracted,
+      educationCount: summary.education_extracted,
+      certificationsCount: summary.certifications_extracted,
+    });
+  });
+  const isProcessing = extraction.isBusy && !extraction.preview;
+  const errorMessage = extraction.preview ? null : extraction.error;
+  const currentStep =
+    extraction.phase === "saving" ? "Saving your CV to your profile..." : "Reading and extracting your CV...";
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
-      setErrorMessage(null);
+      extraction.setError(null);
     }
   };
 
-  const handleStartExtraction = async () => {
-    if (!isAuthenticated) {
-      setErrorMessage(vcopy("cvUpload.authRequired"));
-      return;
-    }
-    setIsProcessing(true);
-    setErrorMessage(null);
-    setProgress(20);
-    setCurrentStep("Reading document and preparing extraction pipeline...");
-
-    try {
-      let res;
-      if (selectedFile) {
-        setProgress(45);
-        setCurrentStep("Parsing document format (PDF/DOCX) & extracting text...");
-        res = await cvApi.uploadCV(selectedFile);
-      } else if (rawText.trim()) {
-        setProgress(50);
-        setCurrentStep("Analyzing resume text through AIService Gateway...");
-        res = await cvApi.parseText(rawText);
-      } else {
-        throw new Error("Please select a file or paste your resume text.");
-      }
-
-      setProgress(85);
-      setCurrentStep(vcopy("cvUpload.persistingStep"));
-
-      const summary = res.summary || {
-        experiences_extracted: 0,
-        bullets_extracted: 0,
-        skills_extracted: 0,
-        projects_extracted: 0,
-        certifications_extracted: 0,
-        education_extracted: 0,
-      };
-
-      setProgress(100);
-      setCurrentStep("Structured extraction complete!");
-      setExtractionResult({
-        experiencesCount: summary.experiences_extracted,
-        skillsCount: summary.skills_extracted,
-        projectsCount: summary.projects_extracted,
-        educationCount: summary.education_extracted,
-        certificationsCount: summary.certifications_extracted,
-      });
-    } catch (err: any) {
-      console.error("Extraction error:", err);
-      setErrorMessage(err.message || "Failed to process resume. Please try again.");
-    } finally {
-      setIsProcessing(false);
+  const handleStartExtraction = () => {
+    if (selectedFile) {
+      void extraction.extract({ kind: "file", file: selectedFile });
+    } else if (rawText.trim()) {
+      void extraction.extract({ kind: "text", text: rawText, label: "Pasted resume text" });
+    } else {
+      extraction.setError("Please select a file or paste your resume text.");
     }
   };
 
@@ -102,31 +69,6 @@ export default function CVUploadPage() {
           <AlertCircle className="h-5 w-5 shrink-0" />
           <span>{errorMessage}</span>
         </div>
-      )}
-
-      {!isAuthenticated && (
-        <Card className="p-8 text-center glass-card border-dashed border-zinc-800 bg-zinc-950/40 space-y-4">
-          <div className="h-10 w-10 rounded-xl bg-blue-950/60 border border-blue-800/40 flex items-center justify-center text-blue-400 mx-auto">
-            <UploadCloud className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-zinc-200">{vcopy("cvUpload.signInTitle")}</h3>
-            <p className="text-xs text-zinc-400 max-w-md mx-auto">
-              {vcopy("cvUpload.signInDescription")}
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <Button size="sm" onClick={loginAsDemo} className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-500 text-white">
-              <Sparkles className="h-3.5 w-3.5" />
-              One-Click Demo Mode
-            </Button>
-            <AuthDialog>
-              <Button size="sm" variant="outline" className="text-xs border-zinc-800 bg-zinc-900/60 text-zinc-300">
-                Sign In / Register
-              </Button>
-            </AuthDialog>
-          </div>
-        </Card>
       )}
 
       {/* Guided Onboarding Callout */}
@@ -148,7 +90,15 @@ export default function CVUploadPage() {
         </Link>
       </div>
 
-      {!extractionResult ? (
+      {extraction.preview ? (
+        <CvExtractionPreview
+          result={extraction.preview}
+          phase={extraction.phase}
+          error={extraction.error}
+          onDiscard={extraction.discard}
+          onRetrySave={extraction.retrySave}
+        />
+      ) : !extractionResult ? (
         <Card>
           <CardHeader>
             <CardTitle>Choose Ingestion Method</CardTitle>
@@ -188,7 +138,7 @@ export default function CVUploadPage() {
                   value={rawText}
                   onChange={(e) => {
                     setRawText(e.target.value);
-                    setErrorMessage(null);
+                    extraction.setError(null);
                   }}
                 />
               </TabsContent>
@@ -201,9 +151,8 @@ export default function CVUploadPage() {
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
                     {currentStep}
                   </span>
-                  <span>{progress}%</span>
                 </div>
-                <Progress value={progress} className="h-2" />
+                <Progress value={extraction.phase === "saving" ? 85 : 45} className="h-2" />
               </div>
             )}
           </CardContent>

@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
-import { LogIn, UserPlus, Sparkles, AlertCircle, Loader2 } from "lucide-react";
+import { LogIn, UserPlus, AlertCircle, Loader2 } from "lucide-react";
 import { vcopy } from "@/lib/verification-copy";
 
 interface AuthDialogProps {
@@ -47,7 +47,7 @@ export function AuthDialog({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, register, loginAsDemo } = useAuth();
+  const { login, register } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,18 +77,6 @@ export function AuthDialog({
     }
   };
 
-  const handleDemoLogin = async () => {
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await loginAsDemo();
-      setOpen(false);
-    } catch (err: any) {
-      setError(err.message || "Could not log into demo account.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -222,29 +210,6 @@ export function AuthDialog({
           </TabsContent>
         </Tabs>
 
-        <div className="relative my-2">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-zinc-800" />
-          </div>
-          <div className="relative flex justify-center text-[10px] uppercase">
-            <span className="bg-zinc-950 px-2 text-zinc-500 font-mono">Or quick exploration</span>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleDemoLogin}
-          disabled={isSubmitting}
-          className="w-full border-blue-800/40 bg-blue-950/30 hover:bg-blue-900/40 text-blue-300 text-xs gap-2 font-mono"
-        >
-          {isSubmitting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
-          ) : (
-            <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-          )}
-          One-Click Demo Candidate Mode
-        </Button>
       </DialogContent>
     </Dialog>
   );

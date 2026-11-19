@@ -8,7 +8,6 @@ import {
   FileUp,
   Settings2,
   User as UserIcon,
-  Sparkles,
   LogIn,
   LogOut,
   Compass,
@@ -45,7 +44,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function Navbar() {
   const pathname = usePathname();
-  const { user, isAuthenticated, logout, loginAsDemo } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
 
@@ -135,15 +134,6 @@ export function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loginAsDemo}
-                className="h-8 px-2 sm:px-2.5 text-xs border-violet-900/50 bg-violet-950/30 hover:bg-violet-900/50 text-violet-300 gap-1.5 font-mono whitespace-nowrap shrink-0"
-              >
-                <Sparkles className="h-3 w-3 text-violet-400 shrink-0" />
-                <span className="hidden sm:inline">Quick</span> Demo
-              </Button>
 
               <AuthDialog>
                 <Button size="sm" className="h-8 px-2.5 sm:px-3 text-xs bg-violet-600 hover:bg-violet-500 text-white gap-1.5 font-medium whitespace-nowrap shrink-0">
@@ -292,18 +282,6 @@ export function Navbar() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      loginAsDemo();
-                      setMobileMenuOpen(false);
-                    }}
-                    className="w-full h-9 text-xs border-violet-900/50 bg-violet-950/30 hover:bg-violet-900/50 text-violet-300 gap-1.5 font-mono"
-                  >
-                    <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-                    Quick Demo Mode
-                  </Button>
 
                   <AuthDialog>
                     <Button

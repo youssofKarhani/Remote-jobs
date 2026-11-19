@@ -4,7 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token, get_current_user, get_password_hash, verify_password
+from app.core.security import (
+    create_access_token,
+    get_current_user,
+    get_password_hash,
+    is_retired_account,
+    verify_password,
+)
 from app.database import get_db
 from app.models.preference import CandidatePreference
 from app.models.profile import CandidateProfile
@@ -21,7 +27,7 @@ async def register_user(
 ):
     """Register a new user account."""
     existing_user = db.query(User).filter(User.email == user_in.email.lower().strip()).first()
-    if existing_user:
+    if existing_user or is_retired_account(user_in.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="A user with this email address already exists.",
@@ -75,7 +81,7 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.is_active:
+    if not user.is_active or is_retired_account(user.email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
@@ -100,7 +106,7 @@ async def login_json(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.is_active:
+    if not user.is_active or is_retired_account(user.email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",

@@ -51,7 +51,19 @@ export async function fetchApi<T>(
     let errorDetail = response.statusText;
     try {
       const errorJson = await response.json();
-      errorDetail = errorJson.detail || errorJson.message || errorDetail;
+      const detail = errorJson.detail ?? errorJson.message;
+      if (Array.isArray(detail)) {
+        // FastAPI/Pydantic validation errors: [{ loc, msg, ... }]
+        errorDetail = detail
+          .map((d: { loc?: unknown[]; msg?: string }) => {
+            const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : undefined;
+            const msg = (d.msg || "Invalid value").replace(/^Value error,\s*/i, "");
+            return field && field !== "body" ? `${field}: ${msg}` : msg;
+          })
+          .join("; ");
+      } else if (typeof detail === "string" && detail) {
+        errorDetail = detail;
+      }
     } catch {
       // ignore
     }
@@ -91,7 +103,74 @@ export const authApi = {
 // ---------------------------------------------------------------------------
 // CV Ingestion API
 // ---------------------------------------------------------------------------
+export interface CVPreviewExperience {
+  company_name: string | null;
+  role_title: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  is_current: boolean;
+  bullets: string[];
+}
+
+export interface CVPreview {
+  headline: string | null;
+  summary: string | null;
+  location: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+  github_url: string | null;
+  experiences: CVPreviewExperience[];
+  skills: string[];
+  projects: { title: string; description: string | null }[];
+  education: {
+    institution: string | null;
+    degree: string | null;
+    field_of_study: string | null;
+    start_date: string | null;
+    end_date: string | null;
+  }[];
+  certifications: { name: string; issuing_organization: string | null; issue_date: string | null }[];
+  languages: string[];
+}
+
+export interface CVPreviewResponse {
+  filename: string;
+  persisted: false;
+  preview: CVPreview;
+  counts: {
+    experiences: number;
+    bullets: number;
+    skills: number;
+    projects: number;
+    education: number;
+    certifications: number;
+    languages: number;
+  };
+  parser_mode: string | null;
+  degraded: boolean | null;
+}
+
 export const cvApi = {
+  /** Anonymous extraction: returns what was found in the CV. Nothing is saved. */
+  async previewCV(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetchApi<CVPreviewResponse>("/api/v1/cv/preview", {
+      method: "POST",
+      body: formData,
+      token: null,
+    });
+  },
+
+  /** Anonymous extraction of pasted text. Nothing is saved. */
+  async previewText(text: string) {
+    return fetchApi<CVPreviewResponse>("/api/v1/cv/preview-text", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+      token: null,
+    });
+  },
+
   async uploadCV(file: File) {
     const formData = new FormData();
     formData.append("file", file);
