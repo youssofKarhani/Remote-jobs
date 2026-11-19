@@ -687,8 +687,33 @@ def heuristic_fallback_extract(
 
     _flush_section()
 
+    contact_line_re = re.compile(
+        r"@|https?://|www\.|linkedin|github\.com|\b(?:phone|tel|mobile|email|e-mail)\b|\+?\d[\d\s().-]{6,}\d",
+        re.I,
+    )
+
+    def _strip_identity_lines(block_text: str) -> str:
+        """Drop the name/title/contact lines of the fallback header block.
+
+        The name was already consumed into personal_info; contact lines and single-phrase
+        lines (job title, city) are not skills. List-like lines (e.g. "Python, SQL") stay.
+        """
+        kept = []
+        for idx, line in enumerate(l.strip() for l in block_text.split("\n")):
+            if not line or idx == 0 or contact_line_re.search(line):
+                continue
+            if not re.search(r"[,•|;]", line):
+                continue
+            kept.append(line)
+        return "\n".join(kept)
+
     for ub in unassigned_blocks:
-        cleaned_ub_text = re.sub(r"(?i)\b(?:technical\s+)?(?:skills|technologies|tech\s+stack|key\s+skills)\s*:\s*", "", ub.text)
+        ub_text = ub.text
+        if header_block is not None and ub.id == header_block.id:
+            ub_text = _strip_identity_lines(ub_text)
+            if not ub_text.strip():
+                continue
+        cleaned_ub_text = re.sub(r"(?i)\b(?:technical\s+)?(?:skills|technologies|tech\s+stack|key\s+skills)\s*:\s*", "", ub_text)
         tokens = [t.strip() for t in re.split(r"[,•|\n]+", cleaned_ub_text) if t.strip()]
         is_skill_list = (len(tokens) >= 2 and all(len(t) < 40 for t in tokens)) or any(
             t.lower() in ("python", "javascript", "typescript", "react", "fastapi", "docker", "kubernetes", "aws", "postgresql", "sql", "git", "linux", "go", "java")

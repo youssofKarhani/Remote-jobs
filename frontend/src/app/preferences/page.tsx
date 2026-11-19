@@ -11,10 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { preferencesApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "@/components/auth/auth-dialog";
-import { Sparkles } from "lucide-react";
 
 export default function PreferencesPage() {
-  const { isAuthenticated, loginAsDemo } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [targetRoles, setTargetRoles] = useState<string[]>([]);
   const [newRole, setNewRole] = useState("");
   const [locations, setLocations] = useState<string[]>([]);
@@ -113,7 +112,7 @@ export default function PreferencesPage() {
 
   const handleSave = async () => {
     if (!isAuthenticated) {
-      setSaveError("Please sign in or use Demo Mode to persist candidate preferences.");
+      setSaveError("Please sign in to save your preferences.");
       setTimeout(() => setSaveError(null), 5000);
       return;
     }
@@ -157,16 +156,12 @@ export default function PreferencesPage() {
           <div className="space-y-1">
             <h3 className="text-sm font-semibold text-zinc-200">Sign in to Save Filtering Rules</h3>
             <p className="text-xs text-zinc-400 max-w-md mx-auto">
-              Configure deterministic location, title, and salary filters to pre-screen opportunities before expensive AI matching. Sign in or launch One-Click Demo Mode to persist preferences.
+              Configure deterministic location, title, and salary filters to pre-screen opportunities before expensive AI matching. Sign in or create a free account to save your preferences.
             </p>
           </div>
           <div className="flex items-center justify-center gap-3 pt-2">
-            <Button size="sm" onClick={loginAsDemo} className="text-xs gap-1.5 bg-blue-600 hover:bg-blue-500 text-white">
-              <Sparkles className="h-3.5 w-3.5" />
-              One-Click Demo Mode
-            </Button>
             <AuthDialog>
-              <Button size="sm" variant="outline" className="text-xs border-zinc-800 bg-zinc-900/60 text-zinc-300">
+              <Button size="sm" className="text-xs bg-violet-600 hover:bg-violet-500 text-white">
                 Sign In / Register
               </Button>
             </AuthDialog>

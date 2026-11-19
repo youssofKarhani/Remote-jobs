@@ -94,6 +94,16 @@ def decode_access_token(token: str) -> Dict[str, Any]:
         )
 
 
+# The old shared "One-Click Demo" account. Its password shipped in the public frontend
+# bundle, so anyone could sign in and read every CV uploaded through it. It is retired:
+# it can no longer register, log in, or use previously issued tokens.
+RETIRED_ACCOUNT_EMAILS = frozenset({"demo@remotejobs.com"})
+
+
+def is_retired_account(email: Optional[str]) -> bool:
+    return (email or "").lower().strip() in RETIRED_ACCOUNT_EMAILS
+
+
 async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme),
     token_query: Optional[str] = Query(None, alias="token"),
@@ -138,7 +148,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not user.is_active:
+    if not user.is_active or is_retired_account(user.email):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",

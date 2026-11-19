@@ -17,7 +17,6 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string) => Promise<void>;
-  loginAsDemo: () => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
 }
@@ -73,25 +72,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginAsDemo = async () => {
-    setIsLoading(true);
-    const demoEmail = "demo@remotejobs.com";
-    const demoPassword = "DemoPassword123!";
-    const demoName = "Demo Candidate";
-
-    try {
-      try {
-        await authApi.login(demoEmail, demoPassword);
-      } catch {
-        // If not yet registered, register demo account
-        await authApi.register(demoEmail, demoPassword, demoName);
-        await authApi.login(demoEmail, demoPassword);
-      }
-      await refreshUser();
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const logout = () => {
     clearAuthToken();
@@ -106,7 +86,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         login,
         register,
-        loginAsDemo,
         logout,
         refreshUser,
       }}

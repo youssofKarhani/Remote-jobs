@@ -11,7 +11,7 @@ import { vcopy } from "@/lib/verification-copy";
 
 export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const [targetRole, setTargetRole] = useState<string>("Staff Backend Engineer");
+  const [targetRole, setTargetRole] = useState<string>("");
   const [extractionSummary, setExtractionSummary] = useState<ExtractionSummaryData>({
     experiencesCount: 0,
     bulletsCount: 0,

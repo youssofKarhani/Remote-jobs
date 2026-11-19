@@ -96,11 +96,10 @@ export function PipelineScheduleDialog({
   showPrefix = false,
   variant = "badge",
 }: PipelineScheduleDialogProps = {}) {
-  const { user, isAuthenticated, loginAsDemo } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [isDemoLoading, setIsDemoLoading] = useState(false);
 
   // Time state
   const [timeState, setTimeState] = useState<TimeRemaining>({
@@ -227,14 +226,6 @@ export function PipelineScheduleDialog({
     }
   }, [open, isAuthenticated, checkReadiness]);
 
-  const handleDemoLogin = async () => {
-    setIsDemoLoading(true);
-    try {
-      await loginAsDemo();
-    } finally {
-      setIsDemoLoading(false);
-    }
-  };
 
   const localTimeString = mounted
     ? timeState.nextRunDate.toLocaleTimeString([], {
@@ -474,20 +465,6 @@ export function PipelineScheduleDialog({
                   >
                     <LogIn className="h-3.5 w-3.5" />
                     Sign In to Check Your Profile
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={isDemoLoading}
-                    onClick={handleDemoLogin}
-                    className="w-full h-7 text-[11px] text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50 font-mono gap-1"
-                  >
-                    {isDemoLoading ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3 w-3 text-violet-400" />
-                    )}
-                    or try 1-Click Demo
                   </Button>
                 </div>
               </div>
