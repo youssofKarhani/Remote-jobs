@@ -147,3 +147,16 @@ def configure_test_ai(monkeypatch):
         from app.integrations.llm_ai_service import ai_service
         monkeypatch.setattr(ai_service, "provider", "mock")
 
+
+
+@pytest.fixture(autouse=True)
+def _reset_auth_rate_limits():
+    """Rate-limit counters are module-level; keep tests independent of each other."""
+    from app.routers import auth as auth_router_module
+    for limiter in (
+        auth_router_module.login_ip_limiter,
+        auth_router_module.login_account_limiter,
+        auth_router_module.register_ip_limiter,
+    ):
+        limiter.reset()
+    yield

@@ -42,6 +42,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Lets the browser read download filenames and rate-limit back-off hints.
+    expose_headers=["Content-Disposition", "Retry-After"],
 )
 
 # Mount API v1 Routers

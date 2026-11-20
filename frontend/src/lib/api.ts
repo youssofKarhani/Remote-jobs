@@ -86,6 +86,43 @@ export const authApi = {
   async getCurrentUser<T = any>() {
     return fetchApi<T>("/api/v1/auth/me", { method: "GET" });
   },
+
+  /** Download everything stored about the signed-in user (GDPR Art. 15/20). */
+  async exportMyData(): Promise<{ blob: Blob; filename: string }> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/me/export`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) {
+      throw new Error(`Export failed (${response.status}). Please try again.`);
+    }
+    const disposition = response.headers.get("content-disposition") || "";
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    return { blob: await response.blob(), filename: match?.[1] || "findjobfit-data.json" };
+  },
+
+  /** Permanently delete the signed-in user's account and data (GDPR Art. 17). */
+  async deleteMyAccount(password: string): Promise<void> {
+    const token = getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ password }),
+    });
+    if (!response.ok) {
+      let detail = `Deletion failed (${response.status}).`;
+      try {
+        const body = await response.json();
+        if (typeof body.detail === "string") detail = body.detail;
+      } catch {
+        // keep generic message
+      }
+      throw new Error(detail);
+    }
+  },
 };
 
 // ---------------------------------------------------------------------------
