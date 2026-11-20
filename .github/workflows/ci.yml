@@ -76,12 +76,15 @@ jobs:
   dependency-audit:
     name: Dependency audit (advisory)
     runs-on: ubuntu-latest
-    # Advisory until the existing backlog is cleared; make it blocking afterwards.
-    continue-on-error: true
+    # Advisory until the existing backlog is cleared: findings show in the step log and as a
+    # warning, but don't mark the PR red. Remove the step-level continue-on-error to make it
+    # blocking. (Job-level continue-on-error would still show a failed check.)
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - name: pip-audit (backend)
+        id: pip_audit
+        continue-on-error: true
         working-directory: backend
         run: |
           uv export --frozen --no-hashes --format requirements-txt > /tmp/requirements.txt
@@ -90,5 +93,11 @@ jobs:
         with:
           node-version: 20
       - name: npm audit (frontend)
+        id: npm_audit
+        continue-on-error: true
         working-directory: frontend
         run: npm audit --omit=dev --audit-level=high
+      - name: Summarise
+        if: steps.pip_audit.outcome == 'failure' || steps.npm_audit.outcome == 'failure'
+        run: |
+          echo "::warning title=Dependency audit::Known vulnerabilities found (pip-audit: ${{ steps.pip_audit.outcome }}, npm audit: ${{ steps.npm_audit.outcome }}). See the step logs."
