@@ -189,12 +189,14 @@ export function AuthDialog({
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-xs font-medium text-zinc-300">Password (min 6 chars)</label>
+                <label className="text-xs font-medium text-zinc-300">Password (at least 12 characters)</label>
                 <Input
                   type="password"
                   placeholder="••••••••"
                   required
-                  minLength={6}
+                  minLength={12}
+                  maxLength={128}
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-zinc-900 border-zinc-800 text-xs"

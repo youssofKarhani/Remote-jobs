@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { profileApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import { AuthDialog } from "@/components/auth/auth-dialog";
+import { AccountDataCard } from "@/components/profile/account-data-card";
 import { FEATURES } from "@/lib/features";
 import { vcopy } from "@/lib/verification-copy";
 import {
@@ -825,6 +826,8 @@ export default function ProfilePage() {
         onClose={() => setShowAddCertification(false)}
         onSuccess={loadData}
       />
+
+      {isAuthenticated && <AccountDataCard />}
     </div>
   );
 }
