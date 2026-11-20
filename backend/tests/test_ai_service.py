@@ -110,9 +110,9 @@ class TestAIServiceProtocolConformance:
         assert health["models"]["assessment"] == "reasoning"
 
 
-def test_ai_status_endpoint(client: TestClient):
+def test_ai_status_endpoint(client: TestClient, superuser_headers: dict):
     """GET /api/v1/ai/status must return diagnostic status without hanging."""
-    resp = client.get("/api/v1/ai/status")
+    resp = client.get("/api/v1/ai/status", headers=superuser_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert "status" in data
@@ -902,6 +902,7 @@ class TestCrossProjectSleeplessSlavesIntegration:
         client: TestClient,
         sample_user: User,
         auth_headers: dict,
+        superuser_headers: dict,
         db_session: Session,
         sleepless_slaves_stack,
         monkeypatch,
@@ -924,7 +925,7 @@ class TestCrossProjectSleeplessSlavesIntegration:
             monkeypatch.setattr(ai_service, "poll_interval", 0.01)
 
             # 1. Check /api/v1/ai/status reports connected to Orchestrator
-            status_resp = client.get("/api/v1/ai/status")
+            status_resp = client.get("/api/v1/ai/status", headers=superuser_headers)
             assert status_resp.status_code == 200
             status_json = status_resp.json()
             assert status_json["status"] == "connected"
@@ -1047,7 +1048,7 @@ class TestCrossProjectSleeplessSlavesIntegration:
             assert service.orchestrator_url == "http://13.48.99.101:8000"
 
 
-def test_ai_wake_endpoint(client: TestClient, monkeypatch):
+def test_ai_wake_endpoint(client: TestClient, superuser_headers: dict, monkeypatch):
     """POST /api/v1/ai/wake must trigger wake and return updated orchestrator_url and health."""
     async def fake_trigger_wake():
         ai_service.orchestrator_url = "http://13.48.99.101:8000"
@@ -1056,7 +1057,7 @@ def test_ai_wake_endpoint(client: TestClient, monkeypatch):
     monkeypatch.setattr(ai_service, "wake_url", "https://wake-api.eu-north-1.amazonaws.com/wake")
     monkeypatch.setattr(ai_service, "trigger_wake", fake_trigger_wake)
 
-    resp = client.post("/api/v1/ai/wake")
+    resp = client.post("/api/v1/ai/wake", headers=superuser_headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["wake_triggered"] is True

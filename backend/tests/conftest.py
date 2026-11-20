@@ -112,6 +112,23 @@ def sample_user(db_session: Session) -> User:
 
 
 @pytest.fixture
+def superuser_headers(db_session: Session) -> dict:
+    """JWT headers for an admin user (AI diagnostics endpoints are admin-only)."""
+    from app.core.security import create_access_token, get_password_hash
+    admin = User(
+        email="admin@example.com",
+        hashed_password=get_password_hash("admin-password-123"),
+        full_name="Platform Admin",
+        is_active=True,
+        is_superuser=True,
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+    return {"Authorization": f"Bearer {create_access_token(subject=admin.id)}"}
+
+
+@pytest.fixture
 def auth_headers(sample_user: User) -> dict:
     """Provide valid JWT bearer authentication headers for sample_user."""
     from app.core.security import create_access_token
