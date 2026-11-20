@@ -87,3 +87,9 @@ backend/storage/
 # Debug query logs
 query*.txt
 query*.json
+
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
