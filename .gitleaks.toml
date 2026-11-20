@@ -1,0 +1,16 @@
+title = "FindJobFit gitleaks config"
+
+[extend]
+useDefault = true
+
+# Known, intentionally public development defaults. Real secrets live only in Railway.
+[allowlist]
+description = "Public development defaults and example files"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)docker-compose\.yml$''',
+]
+regexes = [
+  '''dev-secret-key-change-in-production-0987654321''',
+  '''change-in-production-long-random-entropy-string-0987654321''',
+]
