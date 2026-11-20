@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,10 @@ import { CoreGuaranteeBanner } from "@/components/home/core-guarantee-banner";
 import { ArchitectureDialog } from "@/components/home/architecture-dialog";
 import { FloatingPipelineSchedule } from "@/components/layout/pipeline-schedule-dialog";
 import { vcopy } from "@/lib/verification-copy";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default function HomePage() {
   return (
