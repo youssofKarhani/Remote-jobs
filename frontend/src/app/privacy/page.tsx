@@ -3,6 +3,7 @@ import { LegalPageShell } from "@/components/legal/legal-page-shell";
 import { vcopy } from "@/lib/verification-copy";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/privacy" },
   title: "Datenschutzerklärung (Privacy Policy) | FindJobFit",
   description: "Informationen über die Verarbeitung personenbezogener Daten nach Art. 13 und 14 DSGVO sowie dem BDSG.",
 };

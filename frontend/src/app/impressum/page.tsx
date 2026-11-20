@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { LegalPageShell } from "@/components/legal/legal-page-shell";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/impressum" },
   title: "Impressum (Legal Notice) | FindJobFit",
   description: "Gesetzliche Anbieterkennzeichnung gemäß § 5 Digitale-Dienste-Gesetz (DDG) und § 18 Abs. 2 MStV.",
 };

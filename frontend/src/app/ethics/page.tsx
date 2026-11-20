@@ -3,6 +3,7 @@ import { LegalPageShell } from "@/components/legal/legal-page-shell";
 import { vcopy } from "@/lib/verification-copy";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/ethics" },
   title: "Ethik & EU AI Act Konformität | FindJobFit",
   description: "Erklärung zur ethischen Ausrichtung und Konformität mit der EU-KI-Verordnung (EU AI Act).",
 };

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { LegalPageShell } from "@/components/legal/legal-page-shell";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/terms" },
   title: "Nutzungsbedingungen (Terms of Service) | FindJobFit",
   description: "Allgemeine Geschäftsbedingungen und Nutzungsrichtlinien der Plattform FindJobFit nach deutschem Recht.",
 };

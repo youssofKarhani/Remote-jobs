@@ -16,10 +16,27 @@ const firaCode = Fira_Code({
   variable: "--font-mono",
 });
 
+const SITE_URL = "https://findjobfit.de";
+const SITE_TITLE = "FindJobFit - Deterministic AI Job Engineering";
+
 export const metadata: Metadata = {
-  title: "FindJobFit - Deterministic AI Job Engineering",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
   description:
     vcopy("meta.description"),
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "FindJobFit",
+    title: SITE_TITLE,
+    description: vcopy("meta.description"),
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: vcopy("meta.description"),
+  },
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
