@@ -1,9 +1,14 @@
 from pathlib import Path
 from typing import List, Optional, Union
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+
+# Public, committed default for local development only. Production must override it.
+DEFAULT_DEV_SECRET_KEY = "dev-secret-key-change-in-production-0987654321"
+_PRODUCTION_NAMES = {"production", "prod"}
+_LOCAL_ORIGIN_PREFIXES = ("http://localhost", "http://127.0.0.1", "http://0.0.0.0")
 
 
 class Settings(BaseSettings):
@@ -17,13 +22,14 @@ class Settings(BaseSettings):
     APP_NAME: str = "RemoteJobs Public Platform API"
     APP_VERSION: str = "0.1.0"
     ENVIRONMENT: str = "development"
-    DEBUG: bool = True
+    # Off by default: DEBUG turns on SQL echo, which writes every query (including CV text) to logs.
+    DEBUG: bool = False
 
     # Database Settings - PostgreSQL default with SQLite fallback for local test/dev
     DATABASE_URL: str = "sqlite:///./remotejobs_dev.db"
 
     # Security & Auth Settings
-    SECRET_KEY: str = "dev-secret-key-change-in-production-0987654321"
+    SECRET_KEY: str = DEFAULT_DEV_SECRET_KEY
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
@@ -78,6 +84,26 @@ class Settings(BaseSettings):
                     pass
             return [origin.strip() for origin in v_trimmed.split(",") if origin.strip()]
         return v
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENVIRONMENT.strip().lower() in _PRODUCTION_NAMES
+
+    @model_validator(mode="after")
+    def enforce_production_safety(self) -> "Settings":
+        """Fail fast on unsafe production configuration instead of running with it."""
+        if not self.is_production:
+            return self
+        if self.SECRET_KEY == DEFAULT_DEV_SECRET_KEY or len(self.SECRET_KEY) < 32:
+            raise ValueError(
+                "ENVIRONMENT=production requires SECRET_KEY to be set to a random value of at least "
+                "32 characters (the committed development default is public)."
+            )
+        if self.DEBUG:
+            raise ValueError("DEBUG must be false when ENVIRONMENT=production (it logs SQL including CV text).")
+        if isinstance(self.CORS_ORIGINS, list):
+            self.CORS_ORIGINS = [o for o in self.CORS_ORIGINS if not o.startswith(_LOCAL_ORIGIN_PREFIXES)]
+        return self
 
 
 settings = Settings()

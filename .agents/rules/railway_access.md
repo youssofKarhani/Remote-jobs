@@ -1,33 +1,39 @@
 # Railway Access & Database Guide
 
-This rule documents how to access Railway services and the production PostgreSQL database for the platform.
+How to reach Railway services and the production PostgreSQL database.
+
+> **Never commit credentials.** This repository is public. Read secrets from Railway at the
+> moment you need them (`railway variables`, `railway run`) and keep them out of files, docs,
+> commit messages and chat logs.
 
 ## Railway Environment
-- **Project**: `ARJ` (`f942086f-01fd-485c-a39f-204dbf631680`)
-- **Environment**: `production` (`df8fc9d1-fffa-48bb-98f2-2af53105df7f`)
-- **Backend Service**: `Backend` (`281f9e6b-0993-4f55-839e-cb59a9403343`)
-- **Postgres Database**: `Postgres` (`44de9d0d-0d40-4aa4-9b23-b614bafc0d9d`)
-- **Frontend URL**: `https://findjobfit.de` (also `https://automated-job-application.up.railway.app`)
+- **Project**: `ARJ`
+- **Environment**: `production`
+- **Services**: `Backend`, `Frontend`, `Postgres`, `cv-extractor-llm`
+- **Frontend URL**: `https://findjobfit.de`
 
 ## Railway CLI Commands
 - Status: `railway status`
-- Variables: `railway variables list --service Backend` / `railway variables list --service Postgres`
+- Variable names only: `railway variables --service Backend --kv | cut -d= -f1`
 
-## Accessing Production Postgres DB via SSH Tunnel
-The database host is `postgres.railway.internal:5432`. To access it from local:
+## Accessing the Production Database
+Postgres is only reachable on Railway's private network (`postgres.railway.internal:5432`).
+It has **no public TCP proxy** — do not add one.
 
-1. **Local SSH Key**: `C:\Users\USER\.ssh\id_ed25519` (registered with `railway ssh keys add`).
-2. **Start Local Tunnel**:
+1. Open a local tunnel (requires your Railway login and a registered SSH key):
    ```bash
    railway connect Postgres --tunnel-only -P 5433
    ```
-3. **Database URL over Tunnel**:
-   ```text
-   postgresql://postgres:OgkamCHQMaJeQIcITkwEpZsftqsONKNp@127.0.0.1:5433/railway
+2. Build the connection string from Railway at runtime instead of writing it down:
+   ```powershell
+   $pw = railway variables --service Postgres --kv | Select-String '^PGPASSWORD=' | ForEach-Object { $_.Line.Split('=',2)[1] }
+   $env:DATABASE_URL = "postgresql://postgres:$pw@127.0.0.1:5433/railway"
    ```
 
 ## Running Production Migrations
+With the tunnel and `$env:DATABASE_URL` from above:
 ```powershell
-$env:DATABASE_URL="postgresql://postgres:OgkamCHQMaJeQIcITkwEpZsftqsONKNp@127.0.0.1:5433/railway"
+cd backend
 uv run alembic upgrade head
 ```
+Clear the variable afterwards: `Remove-Item Env:DATABASE_URL`.

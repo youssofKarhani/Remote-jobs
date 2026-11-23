@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
+from app.core.security import get_current_active_superuser
 from app.database import init_db
 from app.routers import (
     applications_router,
@@ -30,8 +31,10 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
     description="Multi-user AI Job Application and Discovery Platform API",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Interactive API docs are for development only; they map the whole attack surface.
+    docs_url=None if settings.is_production else "/docs",
+    redoc_url=None if settings.is_production else "/redoc",
+    openapi_url=None if settings.is_production else "/openapi.json",
     lifespan=lifespan,
 )
 
@@ -68,14 +71,14 @@ async def health_check():
     }
 
 
-@app.get("/api/v1/ai/status", tags=["AI Gateway"])
+@app.get("/api/v1/ai/status", tags=["AI Gateway"], dependencies=[Depends(get_current_active_superuser)])
 async def get_ai_status():
     """Diagnostic endpoint to inspect AI Gateway connection, models, and liveliness."""
     from app.integrations.llm_ai_service import ai_service
     return await ai_service.check_health()
 
 
-@app.post("/api/v1/ai/wake", tags=["AI Gateway"])
+@app.post("/api/v1/ai/wake", tags=["AI Gateway"], dependencies=[Depends(get_current_active_superuser)])
 async def wake_ai_infrastructure():
     """Trigger the Serverless Wake endpoint to start scale-to-zero AWS infrastructure and refresh IP."""
     from app.integrations.llm_ai_service import ai_service
@@ -94,6 +97,6 @@ async def root():
     """Root landing endpoint."""
     return {
         "message": "Welcome to RemoteJobs Public Platform API",
-        "docs": "/docs",
+        "docs": None if settings.is_production else "/docs",
         "health": "/api/health",
     }
